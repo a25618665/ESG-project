@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>JS Bin</title>
+  <script>
+    getString = function(){
+      inputs = document.getElementsByTagName("input");
+      return inputs[0].value;
+    }
+    doClick = function(){
+      s = getString();
+      document.getElementsByTagName("span")[0].innerHTML = s;
+    }
+  </script>
+</head>
+<body>
+  <span></span>
+  <br>
+  <input type = "text" value = ''>
+  <button onClick = 'doClick();'>顯示</button>
+  <hr>
+  <span> </span>
+</body>
+</html>
