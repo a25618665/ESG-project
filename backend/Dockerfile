@@ -1,20 +1,13 @@
-# 使用node為base Image
-FROM node:latest
+FROM node:24-alpine
 
-ENV NODE_ENV production
-
-# 移動到工作用的dir
+ENV NODE_ENV=production
 WORKDIR /usr/src/app
 
-# 將package.json 放入該資料夾內 (安裝依賴)
-COPY package*.json .
+COPY package*.json ./
+RUN npm ci --omit=dev
 
-# 安裝node_module
-RUN npm install
+COPY --chown=node:node . .
 
-# 把剩下的東西放入work_dir
-COPY . .
-
-# expose 和 執行
+USER node
 EXPOSE 3000
-CMD ["npm","start"]
+CMD ["node", "bin/www"]
