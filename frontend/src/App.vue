@@ -1,28 +1,76 @@
 <template>
-  <div>
-    <img alt="Vue logo" src="./assets/logo.png">
-    <HelloWorld />
-  </div>
+  <main class="app-shell">
+    <header class="hero">
+      <p class="hero-eyebrow">Environmental · Social · Governance</p>
+      <h1>ESG Analytics Platform</h1>
+      <p class="hero-copy">
+        A three-tier interface for exploring structured company and risk data.
+      </p>
+    </header>
+    <CompanyTable />
+  </main>
 </template>
 
 <script>
-import HelloWorld from './components/HelloWorld.vue'
+import CompanyTable from "./components/CompanyTable.vue";
 
 export default {
-  name: 'App',
+  name: "App",
   components: {
-    HelloWorld
-  }
-}
+    CompanyTable,
+  },
+};
 </script>
 
 <style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: #f2f7f3;
+  margin: 0;
+}
+
 #app {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
+  color: #24372d;
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  text-align: center;
-  color: #2c3e50;
-  margin-top: 60px;
+}
+
+.app-shell {
+  margin: 0 auto;
+  max-width: 1040px;
+  padding: 72px 28px;
+}
+
+.hero {
+  margin-bottom: 32px;
+  max-width: 720px;
+}
+
+.hero-eyebrow {
+  color: #3f7954;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  margin: 0 0 12px;
+  text-transform: uppercase;
+}
+
+h1 {
+  color: #153a27;
+  font-size: clamp(2.25rem, 6vw, 4.25rem);
+  letter-spacing: -0.045em;
+  line-height: 1;
+  margin: 0;
+}
+
+.hero-copy {
+  color: #52665b;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  margin: 20px 0 0;
 }
 </style>
