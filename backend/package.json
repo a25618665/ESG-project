@@ -13,7 +13,7 @@
     "express": "~4.22.2",
     "mocha": "^11.8.0",
     "morgan": "~1.11.0",
-    "pg-promise": "^10.15.4",
+    "pg-promise": "^11.5.5",
     "supertest": "^6.1.6"
   }
 }
