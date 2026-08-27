@@ -11,6 +11,7 @@ _Local application preview using the two illustrative records from `database/ini
 ## Engineering highlights
 
 - **Three-service architecture:** packages the Vue/Apache frontend, Node.js/Express API, and PostgreSQL database as independently built services with health checks and dependency-aware startup.
+- **Modern frontend delivery:** replaces the legacy Vue CLI/Webpack build with Vite, reducing frontend lockfile dependency entries from 1,383 to 98 and producing a clean npm audit.
 - **Layered backend:** separates routing, controllers, services, repositories, database configuration, and error handling while preserving the original `/company` response for backward compatibility.
 - **Automated verification:** runs 18 backend tests, a production frontend build, and Docker image builds on every pull request and push to `main` through GitHub Actions.
 - **Structured research scale:** documents 188 CCRI risk events from 33 companies using 7 fields, 3 risk classes, 11 subcategories, and 7 grades, together with 311 company-report pairs.
@@ -30,7 +31,7 @@ The API uses dependency injection between its service and repository layers, whi
 
 | Area | Technology |
 | --- | --- |
-| Frontend | JavaScript, Vue 3, Axios, Apache HTTP Server |
+| Frontend | JavaScript, Vue 3, Vite, Axios, Apache HTTP Server |
 | Backend | Node.js, Express, pg-promise |
 | Database | PostgreSQL 18, SQL initialization scripts |
 | Testing | Mocha, Supertest |
@@ -83,20 +84,9 @@ npm test
 
 Build the frontend:
 
-macOS or Linux:
-
 ```bash
 cd frontend
 npm ci
-NODE_OPTIONS=--openssl-legacy-provider npm run build
-```
-
-Windows PowerShell:
-
-```powershell
-cd frontend
-npm ci
-$env:NODE_OPTIONS="--openssl-legacy-provider"
 npm run build
 ```
 
