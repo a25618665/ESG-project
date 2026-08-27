@@ -14,7 +14,7 @@ _Local application preview using the two illustrative records from `database/ini
 - **Modern frontend delivery:** replaces the legacy Vue CLI/Webpack build with Vite, reducing frontend lockfile dependency entries from 1,383 to 98 and producing a clean npm audit.
 - **Layered backend:** separates routing, controllers, services, repositories, database configuration, and error handling while preserving the original `/company` response for backward compatibility.
 - **Hardened dependency boundaries:** runs Express 5 and pg-promise 12 with test tools isolated in `devDependencies`, unused middleware removed, and zero backend npm audit findings.
-- **Automated verification:** runs two dependency audits, 18 backend tests, a production frontend build, and Docker image builds on every pull request and push to `main` through GitHub Actions.
+- **Automated verification:** runs two dependency audits, 18 backend tests, a production frontend build, Docker image builds, and a full-stack smoke test on every pull request and push to `main` through GitHub Actions.
 - **Structured research scale:** documents 188 CCRI risk events from 33 companies using 7 fields, 3 risk classes, 11 subcategories, and 7 grades, together with 311 company-report pairs.
 
 ## Architecture
@@ -91,7 +91,7 @@ npm ci
 npm run build
 ```
 
-The CI workflow repeats both checks in a clean Node.js 24 environment and then builds the backend and frontend container images.
+The CI workflow repeats both checks in a clean Node.js 24 environment, builds the backend and frontend images, starts the complete Compose stack, validates the API's two-record sample-data contract, and confirms the frontend is reachable.
 
 ## Data and research artifacts
 
