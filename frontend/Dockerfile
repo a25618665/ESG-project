@@ -1,8 +1,7 @@
 FROM node:24-alpine AS build-stage
 
-ARG VUE_APP_API_URL=http://localhost:3000/
-ENV VUE_APP_API_URL=${VUE_APP_API_URL}
-ENV NODE_OPTIONS=--openssl-legacy-provider
+ARG VITE_API_URL=http://localhost:3000/
+ENV VITE_API_URL=${VITE_API_URL}
 
 WORKDIR /usr/src/app
 COPY package*.json ./

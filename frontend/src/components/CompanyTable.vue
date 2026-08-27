@@ -38,8 +38,10 @@
 </template>
 
 <script>
+import axios from "axios";
+
 const apiBaseUrl = (
-  process.env.VUE_APP_API_URL || "http://localhost:3000/"
+  import.meta.env.VITE_API_URL || "http://localhost:3000/"
 ).replace(/\/+$/, "");
 
 export default {
@@ -53,7 +55,7 @@ export default {
   },
   async created() {
     try {
-      const response = await this.axios.get(`${apiBaseUrl}/api/companies`);
+      const response = await axios.get(`${apiBaseUrl}/api/companies`);
       if (!Array.isArray(response.data.data)) {
         throw new Error("Invalid API response");
       }
