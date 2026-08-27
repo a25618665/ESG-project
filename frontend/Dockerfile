@@ -1,4 +1,4 @@
-FROM node:24-alpine AS build-stage
+FROM node:26-alpine AS build-stage
 
 ARG VUE_APP_API_URL=http://localhost:3000/
 ENV VUE_APP_API_URL=${VUE_APP_API_URL}
