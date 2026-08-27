@@ -13,7 +13,8 @@ _Local application preview using the two illustrative records from `database/ini
 - **Three-service architecture:** packages the Vue/Apache frontend, Node.js/Express API, and PostgreSQL database as independently built services with health checks and dependency-aware startup.
 - **Modern frontend delivery:** replaces the legacy Vue CLI/Webpack build with Vite, reducing frontend lockfile dependency entries from 1,383 to 98 and producing a clean npm audit.
 - **Layered backend:** separates routing, controllers, services, repositories, database configuration, and error handling while preserving the original `/company` response for backward compatibility.
-- **Automated verification:** runs 18 backend tests, a production frontend build, and Docker image builds on every pull request and push to `main` through GitHub Actions.
+- **Hardened dependency boundaries:** runs Express 5 and pg-promise 12 with test tools isolated in `devDependencies`, unused middleware removed, and zero backend npm audit findings.
+- **Automated verification:** runs two dependency audits, 18 backend tests, a production frontend build, and Docker image builds on every pull request and push to `main` through GitHub Actions.
 - **Structured research scale:** documents 188 CCRI risk events from 33 companies using 7 fields, 3 risk classes, 11 subcategories, and 7 grades, together with 311 company-report pairs.
 
 ## Architecture
