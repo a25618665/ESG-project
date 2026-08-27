@@ -7,17 +7,20 @@
         A three-tier interface for exploring structured company and risk data.
       </p>
     </header>
+    <RiskSummary />
     <CompanyTable />
   </main>
 </template>
 
 <script>
 import CompanyTable from "./components/CompanyTable.vue";
+import RiskSummary from "./components/RiskSummary.vue";
 
 export default {
   name: "App",
   components: {
     CompanyTable,
+    RiskSummary,
   },
 };
 </script>
@@ -72,5 +75,9 @@ h1 {
   font-size: 1.1rem;
   line-height: 1.6;
   margin: 20px 0 0;
+}
+
+.app-shell > section + section {
+  margin-top: 24px;
 }
 </style>

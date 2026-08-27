@@ -9,10 +9,26 @@ describe("ESG API", () => {
     { id: 1, name: "Alpha" },
     { id: 2, name: "Beta" },
   ];
+  const riskSummary = {
+    eventCount: 188,
+    companyCount: 33,
+    majorClassCount: 3,
+    subcategoryCount: 11,
+    numericGradeCount: 7,
+    specialGradeEventCount: 26,
+    gradeDistribution: [{ grade: "3", count: 9 }],
+    classDistribution: [
+      { majorClass: "Corporate governance", count: 120 },
+    ],
+  };
 
-  function buildApp(listCompanies = async () => companies) {
+  function buildApp(
+    listCompanies = async () => companies,
+    getRiskSummary = async () => riskSummary
+  ) {
     return createApp({
       companyService: { listCompanies },
+      riskService: { getRiskSummary },
       corsOrigin: "http://localhost:8080",
       environment: "test",
     });
@@ -29,6 +45,30 @@ describe("ESG API", () => {
 
     assert.equal(response.body.name, "ESG Analytics API");
     assert.equal(response.body.endpoints.companies, "/api/companies");
+    assert.equal(response.body.endpoints.riskSummary, "/api/risk-summary");
+  });
+
+  it("returns structured risk analytics", async () => {
+    const response = await request(buildApp())
+      .get("/api/risk-summary")
+      .expect(200);
+
+    assert.deepEqual(response.body, { data: riskSummary });
+  });
+
+  it("preserves operational risk-service errors", async () => {
+    const getRiskSummary = async () => {
+      throw new AppError(
+        "Risk analytics are temporarily unavailable",
+        503,
+        "RISK_DATA_UNAVAILABLE"
+      );
+    };
+    const response = await request(buildApp(undefined, getRiskSummary))
+      .get("/api/risk-summary")
+      .expect(503);
+
+    assert.equal(response.body.error.code, "RISK_DATA_UNAVAILABLE");
   });
 
   it("returns a structured company collection", async () => {

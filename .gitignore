@@ -17,3 +17,7 @@ coverage/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Local spreadsheet inspection copies
+data/~$*
+data/CCRI風險趨勢與組成&重大訊息_tw.xlsx

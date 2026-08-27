@@ -86,6 +86,10 @@ jobs:
             http://localhost:3000/api/companies \
             --output /tmp/companies.json
 
+          curl --fail --silent --show-error \
+            http://localhost:3000/api/risk-summary \
+            --output /tmp/risk-summary.json
+
           python3 - <<'PY'
           import json
 
@@ -102,6 +106,35 @@ jobs:
               raise SystemExit(
                   f"Expected 2 illustrative company records, received {reported_count}"
               )
+
+          with open("/tmp/risk-summary.json", encoding="utf-8") as response:
+              risk_payload = json.load(response)
+
+          summary = risk_payload.get("data", {})
+          expected_metrics = {
+              "eventCount": 188,
+              "companyCount": 33,
+              "majorClassCount": 3,
+              "subcategoryCount": 11,
+              "numericGradeCount": 7,
+              "specialGradeEventCount": 26,
+          }
+
+          for metric, expected in expected_metrics.items():
+              if summary.get(metric) != expected:
+                  raise SystemExit(
+                      f"Expected {metric}={expected}, received {summary.get(metric)}"
+                  )
+
+          grade_total = sum(
+              item.get("count", 0) for item in summary.get("gradeDistribution", [])
+          )
+          class_total = sum(
+              item.get("count", 0) for item in summary.get("classDistribution", [])
+          )
+
+          if grade_total != 188 or class_total != 188:
+              raise SystemExit("Risk distributions do not reconcile to 188 events")
           PY
 
           curl --fail --silent --show-error \

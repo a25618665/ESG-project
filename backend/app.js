@@ -10,12 +10,18 @@ const {
   createCompanyController,
 } = require("./src/controllers/companyController");
 const { createCompanyRouter } = require("./src/routes/companyRoutes");
+const { createRiskRepository } = require("./src/repositories/riskRepository");
+const { createRiskService } = require("./src/services/riskService");
+const { createRiskController } = require("./src/controllers/riskController");
+const { createRiskRouter } = require("./src/routes/riskRoutes");
 const { errorHandler, notFound } = require("./src/middleware/errorHandler");
 
-function createDefaultCompanyService() {
+function createDefaultServices() {
   const database = createDatabase();
-  const repository = createCompanyRepository(database);
-  return createCompanyService(repository);
+  return {
+    companyService: createCompanyService(createCompanyRepository(database)),
+    riskService: createRiskService(createRiskRepository(database)),
+  };
 }
 
 function createApp(options = {}) {
@@ -23,9 +29,15 @@ function createApp(options = {}) {
   const environment = options.environment || process.env.NODE_ENV || "development";
   const corsOrigin =
     options.corsOrigin || process.env.CORS_ORIGIN || "http://localhost:8080";
+  const defaultServices =
+    options.companyService && options.riskService
+      ? {}
+      : createDefaultServices();
   const companyService =
-    options.companyService || createDefaultCompanyService();
+    options.companyService || defaultServices.companyService;
+  const riskService = options.riskService || defaultServices.riskService;
   const companyController = createCompanyController(companyService);
+  const riskController = createRiskController(riskService);
 
   app.set("env", environment);
 
@@ -59,6 +71,7 @@ function createApp(options = {}) {
       endpoints: {
         health: "/health",
         companies: "/api/companies",
+        riskSummary: "/api/risk-summary",
         legacyCompanies: "/company",
       },
     });
@@ -69,6 +82,7 @@ function createApp(options = {}) {
   });
 
   app.use("/api/companies", createCompanyRouter(companyController));
+  app.use("/api/risk-summary", createRiskRouter(riskController));
 
   // Preserve the original frontend contract while clients migrate to /api/companies.
   app.get("/company", companyController.listLegacy);
