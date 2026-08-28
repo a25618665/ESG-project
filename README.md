@@ -6,7 +6,7 @@ A containerized three-tier platform for presenting structured company and ESG ri
 
 ![ESG Analytics Platform interface](docs/images/platform-preview.png)
 
-_Local application preview using the two illustrative records from `database/init/`; these records are not part of the research dataset._
+_Company-record interface using the two illustrative records from `database/init/`; these records are not part of the research dataset._
 
 ## Engineering highlights
 
@@ -14,8 +14,9 @@ _Local application preview using the two illustrative records from `database/ini
 - **Modern frontend delivery:** replaces the legacy Vue CLI/Webpack build with Vite, reducing frontend lockfile dependency entries from 1,383 to 171—including component-test tooling—and producing a clean npm audit.
 - **Layered backend:** separates routing, controllers, services, repositories, database configuration, and error handling while preserving the original `/company` response for backward compatibility.
 - **Hardened dependency boundaries:** runs Express 5 and pg-promise 12 with test tools isolated in `devDependencies`, unused middleware removed, and zero backend npm audit findings.
-- **Automated verification:** runs two dependency audits, 18 backend tests, 5 Vue component tests, a production frontend build, Docker image builds, and a full-stack smoke test on every pull request and push to `main` through GitHub Actions.
-- **Structured research scale:** documents 188 CCRI risk events from 33 companies using 7 fields, 3 risk classes, 11 subcategories, and 7 grades, together with 311 company-report pairs.
+- **Source-backed data pipeline:** transforms 188 populated workbook events into normalized PostgreSQL records for 33 companies and 11 risk categories while retaining source-row provenance and excluding republished news text.
+- **Automated verification:** runs two dependency audits, 26 backend tests, 10 Vue component tests, a production frontend build, Docker image builds, and a full-stack data-integrity smoke test on every pull request and push to `main` through GitHub Actions.
+- **Structured research scale:** serves 188 CCRI risk events from 33 companies across 3 risk classes, 11 subcategories, and 7 numeric grades, explicitly accounting for 26 additional `D`-coded records, alongside the documented 311 company-report pairs.
 
 ## Architecture
 
@@ -35,7 +36,7 @@ The API uses dependency injection between its service and repository layers, whi
 | Frontend | JavaScript, Vue 3, Vite, Axios, Apache HTTP Server |
 | Backend | Node.js, Express, pg-promise |
 | Database | PostgreSQL 18, SQL initialization scripts |
-| Testing | Mocha, Supertest |
+| Testing | Mocha, Supertest, Vitest, Vue Test Utils |
 | Delivery | Docker, Docker Compose, GitHub Actions |
 
 ## API
@@ -45,6 +46,7 @@ The API uses dependency injection between its service and repository layers, whi
 | `GET` | `/` | Lists the public API endpoints |
 | `GET` | `/health` | Reports API health |
 | `GET` | `/api/companies` | Returns `{ data, meta: { count } }` |
+| `GET` | `/api/risk-summary` | Returns verified CCRI metrics and distributions |
 | `GET` | `/company` | Preserves the original array response |
 
 Unknown routes and database failures return consistent JSON errors without exposing internal implementation details. CORS is restricted to the configured frontend origin.
@@ -92,15 +94,15 @@ npm test
 npm run build
 ```
 
-The CI workflow repeats all 23 tests in a clean Node.js 24 environment, builds the frontend and both application images, starts the complete Compose stack, validates the API's two-record sample-data contract, and confirms the frontend is reachable.
+The CI workflow repeats all 36 tests in a clean Node.js 24 environment, builds the frontend and both application images, starts the complete Compose stack, validates both API contracts, reconciles the risk distributions to 188 events, and confirms the frontend is reachable.
 
 ## Data and research artifacts
 
-- `data/` contains the CCRI risk workbook used by the project.
+- `data/` contains the original CCRI risk workbook used by the project.
 - `docs/reports/` contains the capstone reports supporting the research scope and data counts.
-- `database/init/` contains a minimal schema and two clearly labeled illustrative records for local application startup; these examples are not the research dataset.
+- `database/init/` contains the normalized research schema, a derived 188-event analytical seed, and two clearly labeled illustrative company records retained for backward compatibility.
 
-The research model organizes each observed risk event by company, event information, risk classification, and CCRI grade to support trend and composition analysis.
+The derived seed retains company identity, event date and code, CCRI grade and period, category relationships, and the original worksheet row. Full news text is intentionally excluded. PostgreSQL constraints enforce the source's identifier, grade, period, foreign-key, and uniqueness rules.
 
 ## Repository structure
 
