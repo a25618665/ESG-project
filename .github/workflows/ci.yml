@@ -233,6 +233,28 @@ jobs:
             http://localhost:8080/ \
             | grep --quiet '<div id="app"></div>'
 
+      - name: Verify migrations on a persistent database volume
+        shell: bash
+        run: |
+          migration_count() {
+            docker compose exec -T database sh -c \
+              'psql --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --tuples-only --no-align --command="SELECT COUNT(*) FROM schema_migrations"' \
+              | tr -d '[:space:]'
+          }
+
+          test "$(migration_count)" = "5"
+
+          docker compose restart backend
+
+          curl --fail --silent --show-error \
+            --retry 10 --retry-connrefused --retry-delay 2 \
+            http://localhost:3000/ready
+
+          test "$(migration_count)" = "5"
+
+          docker compose logs --no-color backend \
+            | grep --quiet '"event":"database_migrations_completed","level":"info","appliedCount":0,"skippedCount":5,"totalCount":5'
+
       - name: Verify graceful backend shutdown
         run: |
           docker compose stop --timeout 15 backend

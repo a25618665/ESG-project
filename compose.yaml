@@ -21,7 +21,8 @@ services:
 
   backend:
     build:
-      context: ./backend
+      context: .
+      dockerfile: backend/Dockerfile
     stop_grace_period: 15s
     environment:
       NODE_ENV: production
