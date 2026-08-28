@@ -1,5 +1,4 @@
 const express = require("express");
-const logger = require("morgan");
 const openApiDocument = require("./openapi.json");
 
 const { createDatabase } = require("./src/config/database");
@@ -22,6 +21,10 @@ const {
   createRiskRouter,
 } = require("./src/routes/riskRoutes");
 const { errorHandler, notFound } = require("./src/middleware/errorHandler");
+const {
+  createRequestContext,
+  defaultRequestLogger,
+} = require("./src/middleware/requestContext");
 
 function createDefaultServices() {
   const database = createDatabase();
@@ -48,12 +51,18 @@ function createApp(options = {}) {
     options.readinessService || defaultServices.readinessService;
   const companyController = createCompanyController(companyService);
   const riskController = createRiskController(riskService);
+  let requestLogger = options.requestLogger;
+  if (!Object.hasOwn(options, "requestLogger")) {
+    requestLogger = environment === "test" ? null : defaultRequestLogger;
+  }
 
   app.set("env", environment);
-
-  if (environment !== "test") {
-    app.use(logger("dev"));
-  }
+  app.use(
+    createRequestContext({
+      generateRequestId: options.requestIdFactory,
+      logRequest: requestLogger,
+    })
+  );
 
   app.use(express.json());
   app.use(express.urlencoded({ extended: false }));
@@ -62,7 +71,11 @@ function createApp(options = {}) {
 
     res.vary("Origin");
     res.set("Access-Control-Allow-Methods", "GET,OPTIONS");
-    res.set("Access-Control-Allow-Headers", "Content-Type,Authorization");
+    res.set(
+      "Access-Control-Allow-Headers",
+      "Content-Type,Authorization,X-Request-Id"
+    );
+    res.set("Access-Control-Expose-Headers", "X-Request-Id");
 
     if (!requestOrigin || requestOrigin === corsOrigin) {
       res.set("Access-Control-Allow-Origin", corsOrigin);

@@ -102,6 +102,8 @@ jobs:
             http://localhost:3000/health
 
           curl --fail --silent --show-error \
+            --header 'X-Request-Id: ci-readiness-check' \
+            --dump-header /tmp/readiness-headers.txt \
             http://localhost:3000/ready \
             --output /tmp/readiness.json
 
@@ -179,6 +181,20 @@ jobs:
               "dependencies": {"database": "up"},
           }:
               raise SystemExit(f"Unexpected readiness response: {readiness_payload}")
+
+          with open("/tmp/readiness-headers.txt", encoding="utf-8") as response:
+              readiness_headers = response.readlines()
+
+          request_id_headers = [
+              line.split(":", 1)[1].strip()
+              for line in readiness_headers
+              if line.lower().startswith("x-request-id:")
+          ]
+
+          if request_id_headers != ["ci-readiness-check"]:
+              raise SystemExit(
+                  f"Unexpected readiness request ID header: {request_id_headers}"
+              )
 
           expected_paths = {
               "/",
