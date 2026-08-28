@@ -102,6 +102,10 @@ jobs:
             http://localhost:3000/health
 
           curl --fail --silent --show-error \
+            http://localhost:3000/ready \
+            --output /tmp/readiness.json
+
+          curl --fail --silent --show-error \
             http://localhost:3000/api/companies \
             --output /tmp/companies.json
 
@@ -166,9 +170,20 @@ jobs:
           with open("/tmp/openapi.json", encoding="utf-8") as response:
               openapi_payload = json.load(response)
 
+          with open("/tmp/readiness.json", encoding="utf-8") as response:
+              readiness_payload = json.load(response)
+
+          if readiness_payload != {
+              "status": "ready",
+              "service": "esg-api",
+              "dependencies": {"database": "up"},
+          }:
+              raise SystemExit(f"Unexpected readiness response: {readiness_payload}")
+
           expected_paths = {
               "/",
               "/health",
+              "/ready",
               "/openapi.json",
               "/api/companies",
               "/api/risk-summary",

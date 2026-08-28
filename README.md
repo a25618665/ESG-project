@@ -10,14 +10,15 @@ _Company-record interface using the two illustrative records from `database/init
 
 ## Engineering highlights
 
-- **Three-service architecture:** packages the Vue/Apache frontend, Node.js/Express API, and PostgreSQL database as independently built services with health checks and dependency-aware startup.
+- **Three-service architecture:** packages the Vue/Apache frontend, Node.js/Express API, and PostgreSQL database as independently built services with liveness, database-backed readiness, and dependency-aware startup.
 - **Modern frontend delivery:** replaces the legacy Vue CLI/Webpack build with Vite, reducing frontend lockfile dependency entries from 1,383 to 171—including component-test tooling—and producing a clean npm audit.
 - **Layered backend:** separates routing, controllers, services, repositories, database configuration, and error handling while preserving the original `/company` response for backward compatibility.
-- **Machine-readable API contract:** publishes an OpenAPI 3.1 specification for all 7 public and compatibility routes, including bounded filters, response schemas, structured errors, and explicit deprecation metadata.
+- **Machine-readable API contract:** publishes an OpenAPI 3.1 specification for all 8 public and compatibility routes, including bounded filters, response schemas, structured errors, and explicit deprecation metadata.
+- **Dependency-aware reliability:** separates process liveness from PostgreSQL readiness, converts dependency failures into safe `503 SERVICE_NOT_READY` responses, and prevents downstream containers from starting before the API can query its database.
 - **Hardened dependency boundaries:** runs Express 5 and pg-promise 12 with test tools isolated in `devDependencies`, unused middleware removed, and zero backend npm audit findings.
 - **Source-backed data pipeline:** transforms 188 populated workbook events into normalized PostgreSQL records for 33 companies and 11 risk categories while retaining source-row provenance and excluding republished news text.
 - **Indexed exploration API:** provides server-side filtering by CCRI grade, major risk class, and six-digit company code with parameterized SQL, deterministic ordering, bounded pagination, and structured validation errors.
-- **Automated verification:** runs two dependency audits, 38 backend tests, 16 Vue component tests, 8 data-pipeline tests, deterministic seed-drift detection, a production frontend build, Docker image builds, and a full-stack data-integrity smoke test on every pull request and push to `main` through GitHub Actions.
+- **Automated verification:** runs two dependency audits, 44 backend tests, 16 Vue component tests, 8 data-pipeline tests, deterministic seed-drift detection, a production frontend build, Docker image builds, and a full-stack data-integrity smoke test on every pull request and push to `main` through GitHub Actions.
 - **Structured research scale:** serves 188 CCRI risk events from 33 companies across 3 risk classes, 11 subcategories, and 7 numeric grades, explicitly accounting for 26 additional `D`-coded records, alongside the documented 311 company-report pairs.
 
 ## Architecture
@@ -29,7 +30,7 @@ flowchart LR
     A -->|Repository queries| D[(PostgreSQL 18)]
 ```
 
-The API uses dependency injection between its service and repository layers, which keeps database access replaceable during tests. Docker Compose waits for database and API health checks before starting dependent services.
+The API uses dependency injection between its service and repository layers, which keeps database access replaceable during tests. Docker Compose waits for PostgreSQL health and database-backed API readiness before starting dependent services.
 
 ## Technology
 
@@ -46,7 +47,8 @@ The API uses dependency injection between its service and repository layers, whi
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `GET` | `/` | Lists the public API endpoints |
-| `GET` | `/health` | Reports API health |
+| `GET` | `/health` | Reports process liveness |
+| `GET` | `/ready` | Verifies API and PostgreSQL readiness |
 | `GET` | `/openapi.json` | Serves the OpenAPI 3.1 contract |
 | `GET` | `/api/companies` | Returns `{ data, meta: { count } }` |
 | `GET` | `/api/risk-summary` | Returns verified CCRI metrics and distributions |
@@ -73,7 +75,8 @@ Open:
 
 - Frontend: <http://localhost:8080>
 - API documentation response: <http://localhost:3000>
-- Health check: <http://localhost:3000/health>
+- Liveness check: <http://localhost:3000/health>
+- Database-backed readiness check: <http://localhost:3000/ready>
 
 The default Compose credentials are intended only for local development. To override them, copy `.env.example` to `.env` and replace its placeholder values before starting the services.
 
@@ -102,7 +105,7 @@ npm test
 npm run build
 ```
 
-The CI workflow runs all 62 tests in clean Node.js 24 and Python 3.13 environments, verifies that the committed SQL can be reproduced from the workbook, builds the frontend and both application images, starts the complete Compose stack, validates four API contracts, reconciles the risk distributions to 188 events, verifies filtered pagination against 17 matching records, and confirms the frontend is reachable.
+The CI workflow runs all 68 tests in clean Node.js 24 and Python 3.13 environments, verifies that the committed SQL can be reproduced from the workbook, builds the frontend and both application images, starts the complete Compose stack, validates liveness, database readiness, and four data/API contracts, reconciles the risk distributions to 188 events, verifies filtered pagination against 17 matching records, and confirms the frontend is reachable.
 
 ## Data and research artifacts
 

@@ -38,15 +38,22 @@ describe("ESG API", () => {
     ],
     meta: { total: 1, count: 1, limit: 20, offset: 0 },
   };
+  const readiness = {
+    status: "ready",
+    service: "esg-api",
+    dependencies: { database: "up" },
+  };
 
   function buildApp(
     listCompanies = async () => companies,
     getRiskSummary = async () => riskSummary,
-    getRiskEvents = async () => riskEvents
+    getRiskEvents = async () => riskEvents,
+    checkReadiness = async () => readiness
   ) {
     return createApp({
       companyService: { listCompanies },
       riskService: { getRiskSummary, getRiskEvents },
+      readinessService: { checkReadiness },
       corsOrigin: "http://localhost:8080",
       environment: "test",
     });
@@ -58,10 +65,39 @@ describe("ESG API", () => {
     assert.deepEqual(response.body, { status: "ok", service: "esg-api" });
   });
 
+  it("reports service readiness when PostgreSQL responds", async () => {
+    const response = await request(buildApp()).get("/ready").expect(200);
+
+    assert.deepEqual(response.body, readiness);
+  });
+
+  it("reports unavailable dependencies without exposing internals", async () => {
+    const checkReadiness = async () => {
+      throw new AppError(
+        "Service dependencies are unavailable",
+        503,
+        "SERVICE_NOT_READY"
+      );
+    };
+    const response = await request(
+      buildApp(undefined, undefined, undefined, checkReadiness)
+    )
+      .get("/ready")
+      .expect(503);
+
+    assert.deepEqual(response.body, {
+      error: {
+        code: "SERVICE_NOT_READY",
+        message: "Service dependencies are unavailable",
+      },
+    });
+  });
+
   it("documents its public endpoints", async () => {
     const response = await request(buildApp()).get("/").expect(200);
 
     assert.equal(response.body.name, "ESG Analytics API");
+    assert.equal(response.body.endpoints.readiness, "/ready");
     assert.equal(response.body.endpoints.apiContract, "/openapi.json");
     assert.equal(response.body.endpoints.companies, "/api/companies");
     assert.equal(response.body.endpoints.riskSummary, "/api/risk-summary");

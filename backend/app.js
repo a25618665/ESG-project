@@ -13,6 +13,9 @@ const {
 const { createCompanyRouter } = require("./src/routes/companyRoutes");
 const { createRiskRepository } = require("./src/repositories/riskRepository");
 const { createRiskService } = require("./src/services/riskService");
+const {
+  createReadinessService,
+} = require("./src/services/readinessService");
 const { createRiskController } = require("./src/controllers/riskController");
 const {
   createRiskEventRouter,
@@ -25,6 +28,7 @@ function createDefaultServices() {
   return {
     companyService: createCompanyService(createCompanyRepository(database)),
     riskService: createRiskService(createRiskRepository(database)),
+    readinessService: createReadinessService(database),
   };
 }
 
@@ -34,12 +38,14 @@ function createApp(options = {}) {
   const corsOrigin =
     options.corsOrigin || process.env.CORS_ORIGIN || "http://localhost:8080";
   const defaultServices =
-    options.companyService && options.riskService
+    options.companyService && options.riskService && options.readinessService
       ? {}
       : createDefaultServices();
   const companyService =
     options.companyService || defaultServices.companyService;
   const riskService = options.riskService || defaultServices.riskService;
+  const readinessService =
+    options.readinessService || defaultServices.readinessService;
   const companyController = createCompanyController(companyService);
   const riskController = createRiskController(riskService);
 
@@ -74,6 +80,7 @@ function createApp(options = {}) {
       name: "ESG Analytics API",
       endpoints: {
         health: "/health",
+        readiness: "/ready",
         apiContract: "/openapi.json",
         companies: "/api/companies",
         riskSummary: "/api/risk-summary",
@@ -85,6 +92,14 @@ function createApp(options = {}) {
 
   app.get("/health", (req, res) => {
     res.json({ status: "ok", service: "esg-api" });
+  });
+
+  app.get("/ready", async (req, res, next) => {
+    try {
+      res.json(await readinessService.checkReadiness());
+    } catch (error) {
+      next(error);
+    }
   });
 
   app.get("/openapi.json", (req, res) => {
