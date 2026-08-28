@@ -37,3 +37,9 @@ CREATE INDEX IF NOT EXISTS risk_event_category_id_idx
 
 CREATE INDEX IF NOT EXISTS risk_event_ccri_grade_idx
   ON risk_event (ccri_grade);
+
+CREATE INDEX IF NOT EXISTS risk_event_date_source_row_idx
+  ON risk_event (event_date DESC, source_row);
+
+CREATE INDEX IF NOT EXISTS risk_category_major_class_idx
+  ON risk_category (major_class);

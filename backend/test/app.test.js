@@ -21,14 +21,32 @@ describe("ESG API", () => {
       { majorClass: "Corporate governance", count: 120 },
     ],
   };
+  const riskEvents = {
+    data: [
+      {
+        id: 1,
+        sourceRow: 2,
+        companyCode: "000063",
+        companyName: "中興通訊",
+        eventDate: "2017-02-22",
+        eventCode: "T0100001",
+        ccriGrade: "7",
+        dataPeriod: "2016/06",
+        majorClass: "公司治理問題",
+        subcategory: "董監高管異動(非董監改選)",
+      },
+    ],
+    meta: { total: 1, count: 1, limit: 20, offset: 0 },
+  };
 
   function buildApp(
     listCompanies = async () => companies,
-    getRiskSummary = async () => riskSummary
+    getRiskSummary = async () => riskSummary,
+    getRiskEvents = async () => riskEvents
   ) {
     return createApp({
       companyService: { listCompanies },
-      riskService: { getRiskSummary },
+      riskService: { getRiskSummary, getRiskEvents },
       corsOrigin: "http://localhost:8080",
       environment: "test",
     });
@@ -46,6 +64,7 @@ describe("ESG API", () => {
     assert.equal(response.body.name, "ESG Analytics API");
     assert.equal(response.body.endpoints.companies, "/api/companies");
     assert.equal(response.body.endpoints.riskSummary, "/api/risk-summary");
+    assert.equal(response.body.endpoints.riskEvents, "/api/risk-events");
   });
 
   it("returns structured risk analytics", async () => {
@@ -69,6 +88,43 @@ describe("ESG API", () => {
       .expect(503);
 
     assert.equal(response.body.error.code, "RISK_DATA_UNAVAILABLE");
+  });
+
+  it("returns filtered risk events with pagination metadata", async () => {
+    let receivedQuery;
+    const getRiskEvents = async (query) => {
+      receivedQuery = query;
+      return riskEvents;
+    };
+    const response = await request(
+      buildApp(undefined, undefined, getRiskEvents)
+    )
+      .get("/api/risk-events?grade=7&limit=10&offset=0")
+      .expect(200);
+
+    assert.deepEqual(response.body, riskEvents);
+    assert.deepEqual({ ...receivedQuery }, {
+      grade: "7",
+      limit: "10",
+      offset: "0",
+    });
+  });
+
+  it("returns structured validation errors for invalid filters", async () => {
+    const getRiskEvents = async () => {
+      throw new AppError(
+        "grade must be 3-9 or D",
+        400,
+        "INVALID_QUERY_PARAMETER"
+      );
+    };
+    const response = await request(
+      buildApp(undefined, undefined, getRiskEvents)
+    )
+      .get("/api/risk-events?grade=10")
+      .expect(400);
+
+    assert.equal(response.body.error.code, "INVALID_QUERY_PARAMETER");
   });
 
   it("returns a structured company collection", async () => {

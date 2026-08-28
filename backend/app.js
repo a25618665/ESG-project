@@ -13,7 +13,10 @@ const { createCompanyRouter } = require("./src/routes/companyRoutes");
 const { createRiskRepository } = require("./src/repositories/riskRepository");
 const { createRiskService } = require("./src/services/riskService");
 const { createRiskController } = require("./src/controllers/riskController");
-const { createRiskRouter } = require("./src/routes/riskRoutes");
+const {
+  createRiskEventRouter,
+  createRiskRouter,
+} = require("./src/routes/riskRoutes");
 const { errorHandler, notFound } = require("./src/middleware/errorHandler");
 
 function createDefaultServices() {
@@ -72,6 +75,7 @@ function createApp(options = {}) {
         health: "/health",
         companies: "/api/companies",
         riskSummary: "/api/risk-summary",
+        riskEvents: "/api/risk-events",
         legacyCompanies: "/company",
       },
     });
@@ -83,6 +87,7 @@ function createApp(options = {}) {
 
   app.use("/api/companies", createCompanyRouter(companyController));
   app.use("/api/risk-summary", createRiskRouter(riskController));
+  app.use("/api/risk-events", createRiskEventRouter(riskController));
 
   // Preserve the original frontend contract while clients migrate to /api/companies.
   app.get("/company", companyController.listLegacy);
