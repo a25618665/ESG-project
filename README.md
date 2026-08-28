@@ -10,16 +10,17 @@ _Company-record interface using the two illustrative records from `database/init
 
 ## Engineering highlights
 
-- **Three-service architecture:** packages the Vue/Apache frontend, Node.js/Express API, and PostgreSQL database as independently built services with liveness, database-backed readiness, and dependency-aware startup.
+- **Three-service architecture:** packages the Vue/Apache frontend, Node.js/Express API, and PostgreSQL database as independently built services with liveness, database-backed readiness, dependency-aware startup, and bounded graceful shutdown.
 - **Modern frontend delivery:** replaces the legacy Vue CLI/Webpack build with Vite, reducing frontend lockfile dependency entries from 1,383 to 171—including component-test tooling—and producing a clean npm audit.
 - **Layered backend:** separates routing, controllers, services, repositories, database configuration, and error handling while preserving the original `/company` response for backward compatibility.
 - **Machine-readable API contract:** publishes an OpenAPI 3.1 specification for all 8 public and compatibility routes, including bounded filters, response schemas, structured errors, and explicit deprecation metadata.
 - **Dependency-aware reliability:** separates process liveness from PostgreSQL readiness, converts dependency failures into safe `503 SERVICE_NOT_READY` responses, and prevents downstream containers from starting before the API can query its database.
 - **Traceable operations:** validates and propagates `X-Request-Id` across all 8 routes, emits structured completion logs without query parameters, and returns the same identifier in error responses for client-to-server diagnosis.
+- **Deploy-safe lifecycle:** handles `SIGTERM` and `SIGINT` idempotently, stops accepting new traffic, drains active HTTP requests, closes idle connections, and enforces a 10-second forced-shutdown limit with structured lifecycle events.
 - **Hardened dependency boundaries:** runs Express 5 and pg-promise 12 with test tools isolated in `devDependencies`, unused middleware removed, and zero backend npm audit findings.
 - **Source-backed data pipeline:** transforms 188 populated workbook events into normalized PostgreSQL records for 33 companies and 11 risk categories while retaining source-row provenance and excluding republished news text.
 - **Indexed exploration API:** provides server-side filtering by CCRI grade, major risk class, and six-digit company code with parameterized SQL, deterministic ordering, bounded pagination, and structured validation errors.
-- **Automated verification:** runs two dependency audits, 47 backend tests, 16 Vue component tests, 8 data-pipeline tests, deterministic seed-drift detection, a production frontend build, Docker image builds, and a full-stack data-integrity smoke test on every pull request and push to `main` through GitHub Actions.
+- **Automated verification:** runs two dependency audits, 54 backend tests, 16 Vue component tests, 8 data-pipeline tests, deterministic seed-drift detection, a production frontend build, Docker image builds, a full-stack data-integrity smoke test, and a real container-shutdown check on every pull request and push to `main` through GitHub Actions.
 - **Structured research scale:** serves 188 CCRI risk events from 33 companies across 3 risk classes, 11 subcategories, and 7 numeric grades, explicitly accounting for 26 additional `D`-coded records, alongside the documented 311 company-report pairs.
 
 ## Architecture
@@ -31,7 +32,7 @@ flowchart LR
     A -->|Repository queries| D[(PostgreSQL 18)]
 ```
 
-The API uses dependency injection between its service and repository layers, which keeps database access replaceable during tests. Docker Compose waits for PostgreSQL health and database-backed API readiness before starting dependent services.
+The API uses dependency injection between its service and repository layers, which keeps database access replaceable during tests. Docker Compose waits for PostgreSQL health and database-backed API readiness before starting dependent services, then gives the backend 15 seconds to complete its bounded shutdown sequence.
 
 ## Technology
 
@@ -106,7 +107,7 @@ npm test
 npm run build
 ```
 
-The CI workflow runs all 71 tests in clean Node.js 24 and Python 3.13 environments, verifies that the committed SQL can be reproduced from the workbook, builds the frontend and both application images, starts the complete Compose stack, validates liveness, database readiness, request-ID propagation, and four data/API contracts, reconciles the risk distributions to 188 events, verifies filtered pagination against 17 matching records, and confirms the frontend is reachable.
+The CI workflow runs all 78 tests in clean Node.js 24 and Python 3.13 environments, verifies that the committed SQL can be reproduced from the workbook, builds the frontend and both application images, starts the complete Compose stack, validates liveness, database readiness, request-ID propagation, and four data/API contracts, reconciles the risk distributions to 188 events, verifies filtered pagination against 17 matching records, confirms the frontend is reachable, and proves that the backend records a completed graceful shutdown after Docker sends `SIGTERM`.
 
 ## Data and research artifacts
 
