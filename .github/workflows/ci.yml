@@ -25,6 +25,7 @@ jobs:
         with:
           python-version: "3.13"
           cache: pip
+          cache-dependency-path: requirements-dev.txt
       - name: Install data-tooling dependencies
         run: python -m pip install --requirement requirements-dev.txt
       - name: Test the risk-seed generator
