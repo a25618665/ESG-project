@@ -13,10 +13,11 @@ _Company-record interface using the two illustrative records from `database/init
 - **Three-service architecture:** packages the Vue/Apache frontend, Node.js/Express API, and PostgreSQL database as independently built services with health checks and dependency-aware startup.
 - **Modern frontend delivery:** replaces the legacy Vue CLI/Webpack build with Vite, reducing frontend lockfile dependency entries from 1,383 to 171—including component-test tooling—and producing a clean npm audit.
 - **Layered backend:** separates routing, controllers, services, repositories, database configuration, and error handling while preserving the original `/company` response for backward compatibility.
+- **Machine-readable API contract:** publishes an OpenAPI 3.1 specification for all 7 public and compatibility routes, including bounded filters, response schemas, structured errors, and explicit deprecation metadata.
 - **Hardened dependency boundaries:** runs Express 5 and pg-promise 12 with test tools isolated in `devDependencies`, unused middleware removed, and zero backend npm audit findings.
 - **Source-backed data pipeline:** transforms 188 populated workbook events into normalized PostgreSQL records for 33 companies and 11 risk categories while retaining source-row provenance and excluding republished news text.
 - **Indexed exploration API:** provides server-side filtering by CCRI grade, major risk class, and six-digit company code with parameterized SQL, deterministic ordering, bounded pagination, and structured validation errors.
-- **Automated verification:** runs two dependency audits, 32 backend tests, 16 Vue component tests, 8 data-pipeline tests, deterministic seed-drift detection, a production frontend build, Docker image builds, and a full-stack data-integrity smoke test on every pull request and push to `main` through GitHub Actions.
+- **Automated verification:** runs two dependency audits, 38 backend tests, 16 Vue component tests, 8 data-pipeline tests, deterministic seed-drift detection, a production frontend build, Docker image builds, and a full-stack data-integrity smoke test on every pull request and push to `main` through GitHub Actions.
 - **Structured research scale:** serves 188 CCRI risk events from 33 companies across 3 risk classes, 11 subcategories, and 7 numeric grades, explicitly accounting for 26 additional `D`-coded records, alongside the documented 311 company-report pairs.
 
 ## Architecture
@@ -46,12 +47,15 @@ The API uses dependency injection between its service and repository layers, whi
 | --- | --- | --- |
 | `GET` | `/` | Lists the public API endpoints |
 | `GET` | `/health` | Reports API health |
+| `GET` | `/openapi.json` | Serves the OpenAPI 3.1 contract |
 | `GET` | `/api/companies` | Returns `{ data, meta: { count } }` |
 | `GET` | `/api/risk-summary` | Returns verified CCRI metrics and distributions |
 | `GET` | `/api/risk-events` | Filters and paginates normalized risk-event records |
 | `GET` | `/company` | Preserves the original array response |
 
 Unknown routes and database failures return consistent JSON errors without exposing internal implementation details. CORS is restricted to the configured frontend origin.
+
+The complete request, response, validation, and error schemas are available in the [OpenAPI 3.1 contract](backend/openapi.json) and from the running service at <http://localhost:3000/openapi.json>.
 
 `/api/risk-events` accepts optional `grade`, `majorClass`, and `companyCode` filters plus `limit` (1–100) and `offset` (0–10,000). Unsupported or malformed query parameters return `400 INVALID_QUERY_PARAMETER`; all SQL values remain parameterized.
 
@@ -98,7 +102,7 @@ npm test
 npm run build
 ```
 
-The CI workflow runs all 56 tests in clean Node.js 24 and Python 3.13 environments, verifies that the committed SQL can be reproduced from the workbook, builds the frontend and both application images, starts the complete Compose stack, validates three API contracts, reconciles the risk distributions to 188 events, verifies filtered pagination against 17 matching records, and confirms the frontend is reachable.
+The CI workflow runs all 62 tests in clean Node.js 24 and Python 3.13 environments, verifies that the committed SQL can be reproduced from the workbook, builds the frontend and both application images, starts the complete Compose stack, validates four API contracts, reconciles the risk distributions to 188 events, verifies filtered pagination against 17 matching records, and confirms the frontend is reachable.
 
 ## Data and research artifacts
 

@@ -110,6 +110,10 @@ jobs:
             --output /tmp/risk-summary.json
 
           curl --fail --silent --show-error \
+            http://localhost:3000/openapi.json \
+            --output /tmp/openapi.json
+
+          curl --fail --silent --show-error \
             'http://localhost:3000/api/risk-events?grade=9&companyCode=002628&limit=5&offset=0' \
             --output /tmp/risk-events.json
 
@@ -158,6 +162,24 @@ jobs:
 
           if grade_total != 188 or class_total != 188:
               raise SystemExit("Risk distributions do not reconcile to 188 events")
+
+          with open("/tmp/openapi.json", encoding="utf-8") as response:
+              openapi_payload = json.load(response)
+
+          expected_paths = {
+              "/",
+              "/health",
+              "/openapi.json",
+              "/api/companies",
+              "/api/risk-summary",
+              "/api/risk-events",
+              "/company",
+          }
+
+          if openapi_payload.get("openapi") != "3.1.0" or set(
+              openapi_payload.get("paths", {})
+          ) != expected_paths:
+              raise SystemExit("OpenAPI contract does not match the public route surface")
 
           with open("/tmp/risk-events.json", encoding="utf-8") as response:
               event_payload = json.load(response)
