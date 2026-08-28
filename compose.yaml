@@ -22,6 +22,7 @@ services:
   backend:
     build:
       context: ./backend
+    stop_grace_period: 15s
     environment:
       NODE_ENV: production
       PORT: 3000

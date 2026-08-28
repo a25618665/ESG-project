@@ -10,7 +10,6 @@
     "test": "mocha --recursive \"test/**/*.test.js\""
   },
   "dependencies": {
-    "debug": "^4.4.3",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "pg-promise": "^12.7.1"
