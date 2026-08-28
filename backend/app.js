@@ -1,5 +1,6 @@
 const express = require("express");
 const logger = require("morgan");
+const openApiDocument = require("./openapi.json");
 
 const { createDatabase } = require("./src/config/database");
 const {
@@ -73,6 +74,7 @@ function createApp(options = {}) {
       name: "ESG Analytics API",
       endpoints: {
         health: "/health",
+        apiContract: "/openapi.json",
         companies: "/api/companies",
         riskSummary: "/api/risk-summary",
         riskEvents: "/api/risk-events",
@@ -83,6 +85,10 @@ function createApp(options = {}) {
 
   app.get("/health", (req, res) => {
     res.json({ status: "ok", service: "esg-api" });
+  });
+
+  app.get("/openapi.json", (req, res) => {
+    res.json(openApiDocument);
   });
 
   app.use("/api/companies", createCompanyRouter(companyController));

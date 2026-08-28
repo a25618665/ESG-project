@@ -62,9 +62,21 @@ describe("ESG API", () => {
     const response = await request(buildApp()).get("/").expect(200);
 
     assert.equal(response.body.name, "ESG Analytics API");
+    assert.equal(response.body.endpoints.apiContract, "/openapi.json");
     assert.equal(response.body.endpoints.companies, "/api/companies");
     assert.equal(response.body.endpoints.riskSummary, "/api/risk-summary");
     assert.equal(response.body.endpoints.riskEvents, "/api/risk-events");
+  });
+
+  it("serves the machine-readable API contract", async () => {
+    const response = await request(buildApp())
+      .get("/openapi.json")
+      .expect("Content-Type", /json/)
+      .expect(200);
+
+    assert.equal(response.body.openapi, "3.1.0");
+    assert.equal(response.body.info.title, "ESG Analytics API");
+    assert.ok(response.body.paths["/api/risk-events"]);
   });
 
   it("returns structured risk analytics", async () => {
