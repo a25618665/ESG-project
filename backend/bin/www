@@ -3,10 +3,38 @@
 require("dotenv").config({ quiet: true });
 
 const { createApp } = require("../app");
-const { normalizePort, startServer } = require("../src/serverLifecycle");
+const { createDatabase } = require("../src/config/database");
+const {
+  resolveMigrationsDirectory,
+  runMigrations,
+} = require("../src/database/migrationRunner");
+const {
+  defaultLifecycleLogger,
+  normalizePort,
+  startServer,
+} = require("../src/serverLifecycle");
 
-const app = createApp();
-const port = normalizePort(process.env.PORT || "3000");
+async function main() {
+  const database = createDatabase();
+  await runMigrations({
+    database,
+    migrationsDirectory: resolveMigrationsDirectory(),
+    logEvent: defaultLifecycleLogger,
+  });
 
-app.set("port", port);
-startServer({ app, port });
+  const app = createApp({ database });
+  const port = normalizePort(process.env.PORT || "3000");
+
+  app.set("port", port);
+  startServer({ app, port });
+}
+
+main().catch((error) => {
+  defaultLifecycleLogger({
+    event: "server_initialization_failed",
+    level: "error",
+    code: "SERVER_INITIALIZATION_FAILED",
+    message: error.message,
+  });
+  process.exit(1);
+});

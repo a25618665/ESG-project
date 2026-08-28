@@ -26,8 +26,7 @@ const {
   defaultRequestLogger,
 } = require("./src/middleware/requestContext");
 
-function createDefaultServices() {
-  const database = createDatabase();
+function createDefaultServices(database = createDatabase()) {
   return {
     companyService: createCompanyService(createCompanyRepository(database)),
     riskService: createRiskService(createRiskRepository(database)),
@@ -43,7 +42,7 @@ function createApp(options = {}) {
   const defaultServices =
     options.companyService && options.riskService && options.readinessService
       ? {}
-      : createDefaultServices();
+      : createDefaultServices(options.database);
   const companyService =
     options.companyService || defaultServices.companyService;
   const riskService = options.riskService || defaultServices.riskService;
