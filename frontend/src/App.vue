@@ -8,18 +8,21 @@
       </p>
     </header>
     <RiskSummary />
+    <RiskEventExplorer />
     <CompanyTable />
   </main>
 </template>
 
 <script>
 import CompanyTable from "./components/CompanyTable.vue";
+import RiskEventExplorer from "./components/RiskEventExplorer.vue";
 import RiskSummary from "./components/RiskSummary.vue";
 
 export default {
   name: "App",
   components: {
     CompanyTable,
+    RiskEventExplorer,
     RiskSummary,
   },
 };

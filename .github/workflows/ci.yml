@@ -90,6 +90,10 @@ jobs:
             http://localhost:3000/api/risk-summary \
             --output /tmp/risk-summary.json
 
+          curl --fail --silent --show-error \
+            'http://localhost:3000/api/risk-events?grade=9&companyCode=002628&limit=5&offset=0' \
+            --output /tmp/risk-events.json
+
           python3 - <<'PY'
           import json
 
@@ -135,6 +139,22 @@ jobs:
 
           if grade_total != 188 or class_total != 188:
               raise SystemExit("Risk distributions do not reconcile to 188 events")
+
+          with open("/tmp/risk-events.json", encoding="utf-8") as response:
+              event_payload = json.load(response)
+
+          events = event_payload.get("data", [])
+          event_meta = event_payload.get("meta", {})
+
+          if event_meta != {"total": 17, "count": 5, "limit": 5, "offset": 0}:
+              raise SystemExit(f"Unexpected risk-event pagination: {event_meta}")
+
+          if len(events) != 5 or any(
+              event.get("ccriGrade") != "9"
+              or event.get("companyCode") != "002628"
+              for event in events
+          ):
+              raise SystemExit("Risk-event filters were not applied consistently")
           PY
 
           curl --fail --silent --show-error \

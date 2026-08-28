@@ -6,4 +6,10 @@ function createRiskRouter(riskController) {
   return router;
 }
 
-module.exports = { createRiskRouter };
+function createRiskEventRouter(riskController) {
+  const router = express.Router();
+  router.get("/", riskController.events);
+  return router;
+}
+
+module.exports = { createRiskEventRouter, createRiskRouter };

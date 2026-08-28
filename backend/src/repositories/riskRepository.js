@@ -34,6 +34,40 @@ const CLASS_DISTRIBUTION_SQL = `
   ORDER BY count DESC, risk_category.major_class
 `;
 
+const RISK_EVENT_FILTERS_SQL = `
+  WHERE ($1::text IS NULL OR risk_event.ccri_grade = $1)
+    AND ($2::text IS NULL OR risk_category.major_class = $2)
+    AND ($3::text IS NULL OR research_company.source_code = $3)
+`;
+
+const RISK_EVENT_COUNT_SQL = `
+  SELECT COUNT(*)::integer AS total
+  FROM risk_event
+  JOIN research_company ON research_company.id = risk_event.company_id
+  JOIN risk_category ON risk_category.id = risk_event.category_id
+  ${RISK_EVENT_FILTERS_SQL}
+`;
+
+const RISK_EVENT_LIST_SQL = `
+  SELECT
+    risk_event.id::integer AS id,
+    risk_event.source_row AS "sourceRow",
+    research_company.source_code AS "companyCode",
+    research_company.name AS "companyName",
+    TO_CHAR(risk_event.event_date, 'YYYY-MM-DD') AS "eventDate",
+    risk_event.event_code AS "eventCode",
+    risk_event.ccri_grade AS "ccriGrade",
+    risk_event.data_period AS "dataPeriod",
+    risk_category.major_class AS "majorClass",
+    risk_category.subcategory
+  FROM risk_event
+  JOIN research_company ON research_company.id = risk_event.company_id
+  JOIN risk_category ON risk_category.id = risk_event.category_id
+  ${RISK_EVENT_FILTERS_SQL}
+  ORDER BY risk_event.event_date DESC, risk_event.source_row ASC
+  LIMIT $4 OFFSET $5
+`;
+
 function createRiskRepository(database) {
   if (
     !database ||
@@ -60,12 +94,24 @@ function createRiskRepository(database) {
         classDistribution,
       };
     },
+
+    async listEvents({ grade, majorClass, companyCode, limit, offset }) {
+      const filters = [grade, majorClass, companyCode];
+      const [countResult, events] = await Promise.all([
+        database.one(RISK_EVENT_COUNT_SQL, filters),
+        database.any(RISK_EVENT_LIST_SQL, [...filters, limit, offset]),
+      ]);
+
+      return { events, total: countResult.total };
+    },
   };
 }
 
 module.exports = {
   CLASS_DISTRIBUTION_SQL,
   GRADE_DISTRIBUTION_SQL,
+  RISK_EVENT_COUNT_SQL,
+  RISK_EVENT_LIST_SQL,
   RISK_TOTALS_SQL,
   createRiskRepository,
 };
