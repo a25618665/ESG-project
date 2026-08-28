@@ -10,10 +10,14 @@
       </span>
     </div>
 
-    <p v-if="loading" class="status">Loading risk analytics…</p>
-    <p v-else-if="errorMessage" class="status error" role="alert">
-      {{ errorMessage }}
-    </p>
+    <p v-if="loading" class="status" role="status">Loading risk analytics…</p>
+    <div v-else-if="errorMessage" class="status error" role="alert">
+      <p>{{ errorMessage }}</p>
+      <p v-if="errorReference" class="error-reference">
+        Reference: <code>{{ errorReference }}</code>
+      </p>
+      <button type="button" @click="loadSummary">Retry</button>
+    </div>
     <p v-else-if="summary.eventCount === 0" class="status">
       No risk events are available.
     </p>
@@ -88,11 +92,7 @@
 </template>
 
 <script>
-import axios from "axios";
-
-const apiBaseUrl = (
-  import.meta.env.VITE_API_URL || "http://localhost:3000/"
-).replace(/\/+$/, "");
+import { extractRequestId, getApi } from "../api/client";
 
 const metricNames = [
   "eventCount",
@@ -133,6 +133,7 @@ export default {
     return {
       summary: null,
       errorMessage: "",
+      errorReference: "",
       loading: true,
     };
   },
@@ -144,20 +145,29 @@ export default {
       return Math.max(...this.summary.classDistribution.map(({ count }) => count), 1);
     },
   },
-  async created() {
-    try {
-      const response = await axios.get(`${apiBaseUrl}/api/risk-summary`);
-      if (!isRiskSummary(response.data.data)) {
-        throw new Error("Invalid API response");
-      }
-      this.summary = response.data.data;
-    } catch (error) {
-      this.errorMessage = "Risk analytics are temporarily unavailable.";
-    } finally {
-      this.loading = false;
-    }
+  created() {
+    this.loadSummary();
   },
   methods: {
+    async loadSummary() {
+      this.loading = true;
+      this.errorMessage = "";
+      this.errorReference = "";
+
+      try {
+        const response = await getApi("/api/risk-summary");
+        if (!isRiskSummary(response.data.data)) {
+          throw new Error("Invalid API response");
+        }
+        this.summary = response.data.data;
+      } catch (error) {
+        this.summary = null;
+        this.errorMessage = "Risk analytics are temporarily unavailable.";
+        this.errorReference = extractRequestId(error);
+      } finally {
+        this.loading = false;
+      }
+    },
     barWidth(count, maximum) {
       return `${Math.round((count / maximum) * 100)}%`;
     },
@@ -222,6 +232,25 @@ h3 {
 
 .error {
   color: #a33a3a;
+}
+
+.error p {
+  margin: 0 0 10px;
+}
+
+.error-reference {
+  font-size: 0.78rem;
+}
+
+.error button {
+  background: #ffffff;
+  border: 1px solid #c98787;
+  border-radius: 7px;
+  color: #8c2f2f;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 8px 12px;
 }
 
 .analytics-content {

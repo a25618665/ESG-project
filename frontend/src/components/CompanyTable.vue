@@ -10,10 +10,14 @@
       </span>
     </div>
 
-    <p v-if="loading" class="status">Loading company data…</p>
-    <p v-else-if="errorMessage" class="status error" role="alert">
-      {{ errorMessage }}
-    </p>
+    <p v-if="loading" class="status" role="status">Loading company data…</p>
+    <div v-else-if="errorMessage" class="status error" role="alert">
+      <p>{{ errorMessage }}</p>
+      <p v-if="errorReference" class="error-reference">
+        Reference: <code>{{ errorReference }}</code>
+      </p>
+      <button type="button" @click="loadCompanies">Retry</button>
+    </div>
     <p v-else-if="companies.length === 0" class="status">
       No company records are available.
     </p>
@@ -38,11 +42,7 @@
 </template>
 
 <script>
-import axios from "axios";
-
-const apiBaseUrl = (
-  import.meta.env.VITE_API_URL || "http://localhost:3000/"
-).replace(/\/+$/, "");
+import { extractRequestId, getApi } from "../api/client";
 
 export default {
   name: "CompanyTable",
@@ -50,21 +50,33 @@ export default {
     return {
       companies: [],
       errorMessage: "",
+      errorReference: "",
       loading: true,
     };
   },
-  async created() {
-    try {
-      const response = await axios.get(`${apiBaseUrl}/api/companies`);
-      if (!Array.isArray(response.data.data)) {
-        throw new Error("Invalid API response");
+  created() {
+    this.loadCompanies();
+  },
+  methods: {
+    async loadCompanies() {
+      this.loading = true;
+      this.errorMessage = "";
+      this.errorReference = "";
+
+      try {
+        const response = await getApi("/api/companies");
+        if (!Array.isArray(response.data.data)) {
+          throw new Error("Invalid API response");
+        }
+        this.companies = response.data.data;
+      } catch (error) {
+        this.companies = [];
+        this.errorMessage = "Company data is temporarily unavailable.";
+        this.errorReference = extractRequestId(error);
+      } finally {
+        this.loading = false;
       }
-      this.companies = response.data.data;
-    } catch (error) {
-      this.errorMessage = "Company data is temporarily unavailable.";
-    } finally {
-      this.loading = false;
-    }
+    },
   },
 };
 </script>
@@ -118,6 +130,25 @@ h2 {
 
 .error {
   color: #a33a3a;
+}
+
+.error p {
+  margin: 0 0 10px;
+}
+
+.error-reference {
+  font-size: 0.78rem;
+}
+
+.error button {
+  background: #ffffff;
+  border: 1px solid #c98787;
+  border-radius: 7px;
+  color: #8c2f2f;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 8px 12px;
 }
 
 .table-wrapper {

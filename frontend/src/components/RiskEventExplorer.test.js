@@ -40,7 +40,14 @@ describe("RiskEventExplorer", () => {
 
     expect(axios.get).toHaveBeenCalledWith(
       "http://localhost:3000/api/risk-events",
-      { params: { limit: 10, offset: 0 } },
+      expect.objectContaining({
+        params: { limit: 10, offset: 0 },
+        signal: expect.any(AbortSignal),
+        timeout: 8_000,
+        headers: expect.objectContaining({
+          "X-Request-Id": expect.stringMatching(/^[A-Za-z0-9._:-]+$/),
+        }),
+      }),
     );
     expect(wrapper.findAll("tbody tr")).toHaveLength(1);
     expect(wrapper.text()).toContain("中興通訊");
@@ -60,9 +67,9 @@ describe("RiskEventExplorer", () => {
 
     expect(axios.get).toHaveBeenLastCalledWith(
       "http://localhost:3000/api/risk-events",
-      {
+      expect.objectContaining({
         params: { limit: 10, offset: 0, grade: "7", companyCode: "002628" },
-      },
+      }),
     );
   });
 
@@ -81,7 +88,7 @@ describe("RiskEventExplorer", () => {
 
     expect(axios.get).toHaveBeenLastCalledWith(
       "http://localhost:3000/api/risk-events",
-      { params: { limit: 10, offset: 10 } },
+      expect.objectContaining({ params: { limit: 10, offset: 10 } }),
     );
   });
 
@@ -97,16 +104,64 @@ describe("RiskEventExplorer", () => {
   it("shows an accessible error for failed requests", async () => {
     axios.get
       .mockResolvedValueOnce(response())
-      .mockRejectedValueOnce(new Error("unavailable"));
+      .mockRejectedValueOnce({
+        response: { headers: { "x-request-id": "event-trace-123" } },
+      });
     const wrapper = mount(RiskEventExplorer);
     await flushPromises();
 
     await wrapper.vm.loadEvents();
     await flushPromises();
 
-    expect(wrapper.get('[role="alert"]').text()).toBe(
+    expect(wrapper.get('[role="alert"]').text()).toContain(
       "Risk events are temporarily unavailable.",
     );
+    expect(wrapper.get('[role="alert"]').text()).toContain(
+      "Reference: event-trace-123",
+    );
+  });
+
+  it("retries a failed event request", async () => {
+    axios.get
+      .mockRejectedValueOnce(new Error("unavailable"))
+      .mockResolvedValueOnce(response());
+    const wrapper = mount(RiskEventExplorer);
+    await flushPromises();
+
+    await wrapper.get('[role="alert"] button').trigger("click");
+    await flushPromises();
+
+    expect(axios.get).toHaveBeenCalledTimes(2);
+    expect(wrapper.text()).toContain("中興通訊");
+  });
+
+  it("ignores an older response after a newer filter request completes", async () => {
+    let resolveInitial;
+    let resolveFiltered;
+    axios.get
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveInitial = resolve;
+        }),
+      )
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveFiltered = resolve;
+        }),
+      );
+    const wrapper = mount(RiskEventExplorer);
+
+    await wrapper.get("select").setValue("7");
+    await wrapper.get("form").trigger("submit");
+    resolveFiltered(
+      response([{ ...event, id: 2, companyName: "Newest Result" }]),
+    );
+    await flushPromises();
+    resolveInitial(response([{ ...event, companyName: "Stale Result" }]));
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("Newest Result");
+    expect(wrapper.text()).not.toContain("Stale Result");
   });
 
   it("rejects incompatible API responses", async () => {

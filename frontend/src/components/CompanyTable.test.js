@@ -49,6 +49,13 @@ describe("CompanyTable", () => {
     expect(axios.get).toHaveBeenCalledOnce();
     expect(axios.get).toHaveBeenCalledWith(
       "http://localhost:3000/api/companies",
+      expect.objectContaining({
+        timeout: 8_000,
+        headers: expect.objectContaining({
+          Accept: "application/json",
+          "X-Request-Id": expect.stringMatching(/^[A-Za-z0-9._:-]+$/),
+        }),
+      }),
     );
     expect(wrapper.findAll("tbody tr")).toHaveLength(2);
     expect(wrapper.text()).toContain("2 records");
@@ -73,8 +80,31 @@ describe("CompanyTable", () => {
     await flushPromises();
 
     const alert = wrapper.get('[role="alert"]');
-    expect(alert.text()).toBe("Company data is temporarily unavailable.");
+    expect(alert.text()).toContain("Company data is temporarily unavailable.");
     expect(wrapper.find("table").exists()).toBe(false);
+  });
+
+  it("shows a request reference and retries a failed request", async () => {
+    axios.get
+      .mockRejectedValueOnce({
+        response: { headers: { "x-request-id": "company-trace-123" } },
+      })
+      .mockResolvedValueOnce({
+        data: { data: [{ id: 1, name: "Recovered Company" }] },
+      });
+
+    const wrapper = mount(CompanyTable);
+    await flushPromises();
+
+    expect(wrapper.get('[role="alert"]').text()).toContain(
+      "Reference: company-trace-123",
+    );
+    await wrapper.get("button").trigger("click");
+    await flushPromises();
+
+    expect(axios.get).toHaveBeenCalledTimes(2);
+    expect(wrapper.text()).toContain("Recovered Company");
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false);
   });
 
   it("rejects an incompatible API response", async () => {
@@ -83,7 +113,7 @@ describe("CompanyTable", () => {
     const wrapper = mount(CompanyTable);
     await flushPromises();
 
-    expect(wrapper.get('[role="alert"]').text()).toBe(
+    expect(wrapper.get('[role="alert"]').text()).toContain(
       "Company data is temporarily unavailable.",
     );
   });

@@ -58,6 +58,12 @@ describe("RiskSummary", () => {
 
     expect(axios.get).toHaveBeenCalledWith(
       "http://localhost:3000/api/risk-summary",
+      expect.objectContaining({
+        timeout: 8_000,
+        headers: expect.objectContaining({
+          "X-Request-Id": expect.stringMatching(/^[A-Za-z0-9._:-]+$/),
+        }),
+      }),
     );
     expect(wrapper.text()).toContain("188");
     expect(wrapper.text()).toContain("33");
@@ -92,9 +98,30 @@ describe("RiskSummary", () => {
     const wrapper = mount(RiskSummary);
     await flushPromises();
 
-    expect(wrapper.get('[role="alert"]').text()).toBe(
+    expect(wrapper.get('[role="alert"]').text()).toContain(
       "Risk analytics are temporarily unavailable.",
     );
+  });
+
+  it("shows a request reference and retries analytics loading", async () => {
+    axios.get
+      .mockRejectedValueOnce({
+        response: { headers: { "x-request-id": "summary-trace-123" } },
+      })
+      .mockResolvedValueOnce({ data: { data: summary } });
+
+    const wrapper = mount(RiskSummary);
+    await flushPromises();
+
+    expect(wrapper.get('[role="alert"]').text()).toContain(
+      "Reference: summary-trace-123",
+    );
+    await wrapper.get("button").trigger("click");
+    await flushPromises();
+
+    expect(axios.get).toHaveBeenCalledTimes(2);
+    expect(wrapper.text()).toContain("188");
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false);
   });
 
   it("rejects an incompatible API response", async () => {
@@ -103,7 +130,7 @@ describe("RiskSummary", () => {
     const wrapper = mount(RiskSummary);
     await flushPromises();
 
-    expect(wrapper.get('[role="alert"]').text()).toBe(
+    expect(wrapper.get('[role="alert"]').text()).toContain(
       "Risk analytics are temporarily unavailable.",
     );
   });
