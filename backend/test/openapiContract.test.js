@@ -60,9 +60,9 @@ describe("OpenAPI contract", () => {
   });
 
   it("matches the implemented risk-event query boundaries", () => {
-    const parameters = contract.paths["/api/risk-events"].get.parameters.map(
-      ({ $ref }) => resolveLocalReference($ref)
-    );
+    const parameters = contract.paths["/api/risk-events"].get.parameters
+      .map(({ $ref }) => resolveLocalReference($ref))
+      .filter((parameter) => parameter.in === "query");
     const byName = Object.fromEntries(
       parameters.map((parameter) => [parameter.name, parameter.schema])
     );
@@ -90,6 +90,37 @@ describe("OpenAPI contract", () => {
     const legacyOperation = contract.paths["/company"].get;
     assert.equal(legacyOperation.deprecated, true);
     assert.match(legacyOperation.description, /migrate to \/api\/companies/);
+  });
+
+  it("documents request correlation across every operation and response", () => {
+    const expectedParameterReference = "#/components/parameters/RequestId";
+    const expectedHeaderReference = "#/components/headers/RequestId";
+
+    for (const [path, pathItem] of Object.entries(contract.paths)) {
+      assert.ok(
+        pathItem.get.parameters.some(
+          ({ $ref }) => $ref === expectedParameterReference
+        ),
+        `${path} must accept the request correlation header`
+      );
+      assert.equal(
+        pathItem.get.responses["200"].headers["X-Request-Id"].$ref,
+        expectedHeaderReference,
+        `${path} must return the request correlation header`
+      );
+    }
+
+    for (const response of Object.values(contract.components.responses)) {
+      assert.equal(
+        response.headers["X-Request-Id"].$ref,
+        expectedHeaderReference
+      );
+    }
+
+    assert.deepEqual(
+      contract.components.schemas.ErrorResponse.properties.error.required,
+      ["code", "message", "requestId"]
+    );
   });
 
   it("resolves every schema, parameter, and response reference", () => {

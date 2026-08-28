@@ -48,7 +48,8 @@ describe("ESG API", () => {
     listCompanies = async () => companies,
     getRiskSummary = async () => riskSummary,
     getRiskEvents = async () => riskEvents,
-    checkReadiness = async () => readiness
+    checkReadiness = async () => readiness,
+    appOptions = {}
   ) {
     return createApp({
       companyService: { listCompanies },
@@ -56,6 +57,8 @@ describe("ESG API", () => {
       readinessService: { checkReadiness },
       corsOrigin: "http://localhost:8080",
       environment: "test",
+      requestIdFactory: () => "test-request-id",
+      ...appOptions,
     });
   }
 
@@ -63,6 +66,25 @@ describe("ESG API", () => {
     const response = await request(buildApp()).get("/health").expect(200);
 
     assert.deepEqual(response.body, { status: "ok", service: "esg-api" });
+    assert.equal(response.headers["x-request-id"], "test-request-id");
+  });
+
+  it("preserves a valid caller-provided request ID", async () => {
+    const response = await request(buildApp())
+      .get("/health")
+      .set("X-Request-Id", "client.trace-123")
+      .expect(200);
+
+    assert.equal(response.headers["x-request-id"], "client.trace-123");
+  });
+
+  it("replaces an invalid caller-provided request ID", async () => {
+    const response = await request(buildApp())
+      .get("/health")
+      .set("X-Request-Id", "request id with spaces")
+      .expect(200);
+
+    assert.equal(response.headers["x-request-id"], "test-request-id");
   });
 
   it("reports service readiness when PostgreSQL responds", async () => {
@@ -89,6 +111,7 @@ describe("ESG API", () => {
       error: {
         code: "SERVICE_NOT_READY",
         message: "Service dependencies are unavailable",
+        requestId: "test-request-id",
       },
     });
   });
@@ -203,21 +226,63 @@ describe("ESG API", () => {
   });
 
   it("handles CORS preflight requests", async () => {
-    await request(buildApp())
+    const response = await request(buildApp())
       .options("/api/companies")
       .set("Origin", "http://localhost:8080")
       .expect(204);
+
+    assert.match(
+      response.headers["access-control-allow-headers"],
+      /X-Request-Id/
+    );
+    assert.equal(
+      response.headers["access-control-expose-headers"],
+      "X-Request-Id"
+    );
   });
 
-  it("returns a consistent response for unknown routes", async () => {
-    const response = await request(buildApp()).get("/missing").expect(404);
+  it("correlates structured request logs with error responses", async () => {
+    const entries = [];
+    const app = buildApp(undefined, undefined, undefined, undefined, {
+      requestLogger: (entry) => entries.push(entry),
+    });
+    const response = await request(app)
+      .get("/missing?privateFilter=omitted-from-log")
+      .set("X-Request-Id", "trace-404")
+      .expect(404);
 
     assert.deepEqual(response.body, {
       error: {
         code: "ROUTE_NOT_FOUND",
-        message: "Route not found: GET /missing",
+        message:
+          "Route not found: GET /missing?privateFilter=omitted-from-log",
+        requestId: "trace-404",
       },
     });
+    assert.equal(response.headers["x-request-id"], "trace-404");
+    assert.equal(entries.length, 1);
+    assert.deepEqual(
+      {
+        level: entries[0].level,
+        event: entries[0].event,
+        requestId: entries[0].requestId,
+        method: entries[0].method,
+        path: entries[0].path,
+        statusCode: entries[0].statusCode,
+        errorCode: entries[0].errorCode,
+      },
+      {
+        level: "warn",
+        event: "http_request",
+        requestId: "trace-404",
+        method: "GET",
+        path: "/missing",
+        statusCode: 404,
+        errorCode: "ROUTE_NOT_FOUND",
+      }
+    );
+    assert.match(entries[0].timestamp, /^\d{4}-\d{2}-\d{2}T/);
+    assert.ok(entries[0].durationMs >= 0);
   });
 
   it("preserves operational errors from the service layer", async () => {
@@ -247,6 +312,7 @@ describe("ESG API", () => {
       error: {
         code: "INTERNAL_ERROR",
         message: "An unexpected server error occurred",
+        requestId: "test-request-id",
       },
     });
   });

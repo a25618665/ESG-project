@@ -22,8 +22,9 @@ function errorHandler(error, req, res, next) {
     console.error(error);
   }
 
+  res.locals.errorCode = code;
   res.status(statusCode).json({
-    error: { code, message },
+    error: { code, message, requestId: req.requestId },
   });
 }
 
