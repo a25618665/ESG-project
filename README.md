@@ -16,7 +16,7 @@ _Company-record interface using the two illustrative records from `database/init
 - **Hardened dependency boundaries:** runs Express 5 and pg-promise 12 with test tools isolated in `devDependencies`, unused middleware removed, and zero backend npm audit findings.
 - **Source-backed data pipeline:** transforms 188 populated workbook events into normalized PostgreSQL records for 33 companies and 11 risk categories while retaining source-row provenance and excluding republished news text.
 - **Indexed exploration API:** provides server-side filtering by CCRI grade, major risk class, and six-digit company code with parameterized SQL, deterministic ordering, bounded pagination, and structured validation errors.
-- **Automated verification:** runs two dependency audits, 32 backend tests, 16 Vue component tests, a production frontend build, Docker image builds, and a full-stack data-integrity smoke test on every pull request and push to `main` through GitHub Actions.
+- **Automated verification:** runs two dependency audits, 32 backend tests, 16 Vue component tests, 8 data-pipeline tests, deterministic seed-drift detection, a production frontend build, Docker image builds, and a full-stack data-integrity smoke test on every pull request and push to `main` through GitHub Actions.
 - **Structured research scale:** serves 188 CCRI risk events from 33 companies across 3 risk classes, 11 subcategories, and 7 numeric grades, explicitly accounting for 26 additional `D`-coded records, alongside the documented 311 company-report pairs.
 
 ## Architecture
@@ -98,7 +98,7 @@ npm test
 npm run build
 ```
 
-The CI workflow repeats all 48 tests in a clean Node.js 24 environment, builds the frontend and both application images, starts the complete Compose stack, validates three API contracts, reconciles the risk distributions to 188 events, verifies filtered pagination against 17 matching records, and confirms the frontend is reachable.
+The CI workflow runs all 56 tests in clean Node.js 24 and Python 3.13 environments, verifies that the committed SQL can be reproduced from the workbook, builds the frontend and both application images, starts the complete Compose stack, validates three API contracts, reconciles the risk distributions to 188 events, verifies filtered pagination against 17 matching records, and confirms the frontend is reachable.
 
 ## Data and research artifacts
 
@@ -107,6 +107,16 @@ The CI workflow repeats all 48 tests in a clean Node.js 24 environment, builds t
 - `database/init/` contains the normalized research schema, a derived 188-event analytical seed, and two clearly labeled illustrative company records retained for backward compatibility.
 
 The derived seed retains company identity, event date and code, CCRI grade and period, category relationships, and the original worksheet row. Full news text is intentionally excluded. PostgreSQL constraints enforce the source's identifier, grade, period, foreign-key, and uniqueness rules.
+
+Regenerate and verify the analytical seed:
+
+```bash
+python -m pip install --requirement requirements-dev.txt
+python tools/generate_risk_seed.py
+python tools/generate_risk_seed.py --check
+```
+
+The generator validates the seven-column source layout while intentionally skipping each news-text cell, checks the workbook contract and verified distributions, and emits deterministic SQL. The `--check` option compares fresh output with the committed seed without modifying it, which lets CI detect unreviewed data drift.
 
 ## Repository structure
 
@@ -117,6 +127,7 @@ The derived seed retains company identity, event date and code, CCRI grade and p
 ├── data/                 CCRI research workbook
 ├── docs/                 Reports and project images
 ├── frontend/             Vue interface and production container
+├── tools/                Deterministic workbook-to-SQL generator and tests
 ├── .github/workflows/    Continuous-integration workflow
 └── compose.yaml          Three-service local environment
 ```
