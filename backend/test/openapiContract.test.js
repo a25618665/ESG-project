@@ -10,6 +10,7 @@ const EXPECTED_PATHS = [
   "/company",
   "/health",
   "/openapi.json",
+  "/ready",
 ];
 
 function collectReferences(value, references = []) {

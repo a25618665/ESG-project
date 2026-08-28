@@ -12,7 +12,7 @@
     }
   ],
   "tags": [
-    { "name": "System", "description": "Service discovery and health" },
+    { "name": "System", "description": "Service discovery, liveness, and readiness" },
     { "name": "Companies", "description": "Illustrative company records" },
     { "name": "Risk analytics", "description": "Normalized CCRI research data" }
   ],
@@ -37,7 +37,7 @@
     "/health": {
       "get": {
         "operationId": "getHealth",
-        "summary": "Report service health",
+        "summary": "Report process liveness",
         "tags": ["System"],
         "responses": {
           "200": {
@@ -48,6 +48,24 @@
               }
             }
           }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "operationId": "getReadiness",
+        "summary": "Report service and PostgreSQL readiness",
+        "tags": ["System"],
+        "responses": {
+          "200": {
+            "description": "Service and database are ready",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Readiness" }
+              }
+            }
+          },
+          "503": { "$ref": "#/components/responses/ServiceUnavailable" }
         }
       }
     },
@@ -248,6 +266,7 @@
             "additionalProperties": false,
             "required": [
               "health",
+              "readiness",
               "apiContract",
               "companies",
               "riskSummary",
@@ -256,6 +275,7 @@
             ],
             "properties": {
               "health": { "type": "string", "const": "/health" },
+              "readiness": { "type": "string", "const": "/ready" },
               "apiContract": { "type": "string", "const": "/openapi.json" },
               "companies": { "type": "string", "const": "/api/companies" },
               "riskSummary": { "type": "string", "const": "/api/risk-summary" },
@@ -272,6 +292,23 @@
         "properties": {
           "status": { "type": "string", "const": "ok" },
           "service": { "type": "string", "const": "esg-api" }
+        }
+      },
+      "Readiness": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["status", "service", "dependencies"],
+        "properties": {
+          "status": { "type": "string", "const": "ready" },
+          "service": { "type": "string", "const": "esg-api" },
+          "dependencies": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["database"],
+            "properties": {
+              "database": { "type": "string", "const": "up" }
+            }
+          }
         }
       },
       "OpenApiDocument": {
