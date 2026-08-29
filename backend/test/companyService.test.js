@@ -12,6 +12,21 @@ describe("company service", () => {
     assert.deepEqual(await service.listCompanies(), expected);
   });
 
+  it("reuses validated company data within the cache TTL", async () => {
+    let repositoryCalls = 0;
+    const service = createCompanyService({
+      findAll: async () => {
+        repositoryCalls += 1;
+        return [{ id: 1, name: "Alpha" }];
+      },
+    });
+
+    await service.listCompanies();
+    await service.listCompanies();
+
+    assert.equal(repositoryCalls, 1);
+  });
+
   it("converts database failures into an operational error", async () => {
     const service = createCompanyService({
       findAll: async () => {

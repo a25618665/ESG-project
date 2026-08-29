@@ -1,4 +1,5 @@
 const AppError = require("../errors/AppError");
+const { NO_STORE_CACHE_CONTROL } = require("./cacheControl");
 
 const SAFE_PARSER_ERRORS = Object.freeze({
   "entity.parse.failed": {
@@ -62,6 +63,7 @@ function errorHandler(error, req, res, next) {
   }
 
   res.locals.errorCode = code;
+  res.set("Cache-Control", NO_STORE_CACHE_CONTROL);
   res.status(statusCode).json({
     error: { code, message, requestId: req.requestId },
   });

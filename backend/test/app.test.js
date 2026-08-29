@@ -67,6 +67,7 @@ describe("ESG API", () => {
 
     assert.deepEqual(response.body, { status: "ok", service: "esg-api" });
     assert.equal(response.headers["x-request-id"], "test-request-id");
+    assert.equal(response.headers["cache-control"], "no-store");
   });
 
   it("applies explicit API security headers without framework fingerprinting", async () => {
@@ -161,6 +162,10 @@ describe("ESG API", () => {
       .expect(200);
 
     assert.deepEqual(response.body, { data: riskSummary });
+    assert.equal(
+      response.headers["cache-control"],
+      "public, max-age=30, stale-while-revalidate=60"
+    );
   });
 
   it("preserves operational risk-service errors", async () => {
@@ -176,6 +181,7 @@ describe("ESG API", () => {
       .expect(503);
 
     assert.equal(response.body.error.code, "RISK_DATA_UNAVAILABLE");
+    assert.equal(response.headers["cache-control"], "no-store");
   });
 
   it("returns filtered risk events with pagination metadata", async () => {

@@ -1,4 +1,5 @@
 const AppError = require("../errors/AppError");
+const { createAsyncTtlCache } = require("../cache/asyncTtlCache");
 
 const SUMMARY_METRICS = [
   "eventCount",
@@ -113,7 +114,7 @@ function isValidRiskEvent(event) {
   );
 }
 
-function createRiskService(riskRepository) {
+function createRiskService(riskRepository, options = {}) {
   if (
     !riskRepository ||
     typeof riskRepository.getSummary !== "function" ||
@@ -123,21 +124,27 @@ function createRiskService(riskRepository) {
       "A risk repository with getSummary() and listEvents() methods is required"
     );
   }
+  const summaryCache = options.summaryCache || createAsyncTtlCache();
+  if (typeof summaryCache.get !== "function") {
+    throw new TypeError("A summary cache with a get() method is required");
+  }
 
   return {
     async getRiskSummary() {
       try {
-        const summary = await riskRepository.getSummary();
+        return await summaryCache.get(async () => {
+          const summary = await riskRepository.getSummary();
 
-        if (!isValidSummary(summary)) {
-          throw new AppError(
-            "The database returned invalid risk analytics",
-            500,
-            "INVALID_RISK_DATA"
-          );
-        }
+          if (!isValidSummary(summary)) {
+            throw new AppError(
+              "The database returned invalid risk analytics",
+              500,
+              "INVALID_RISK_DATA"
+            );
+          }
 
-        return summary;
+          return summary;
+        });
       } catch (error) {
         if (error instanceof AppError) {
           throw error;

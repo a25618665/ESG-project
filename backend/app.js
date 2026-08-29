@@ -26,6 +26,10 @@ const {
   defaultRequestLogger,
 } = require("./src/middleware/requestContext");
 const { securityHeaders } = require("./src/middleware/securityHeaders");
+const {
+  cachePublicData,
+  preventCaching,
+} = require("./src/middleware/cacheControl");
 
 const REQUEST_BODY_LIMIT = "16kb";
 const URL_ENCODED_PARAMETER_LIMIT = 50;
@@ -114,11 +118,11 @@ function createApp(options = {}) {
     });
   });
 
-  app.get("/health", (req, res) => {
+  app.get("/health", preventCaching, (req, res) => {
     res.json({ status: "ok", service: "esg-api" });
   });
 
-  app.get("/ready", async (req, res, next) => {
+  app.get("/ready", preventCaching, async (req, res, next) => {
     try {
       res.json(await readinessService.checkReadiness());
     } catch (error) {
@@ -130,12 +134,24 @@ function createApp(options = {}) {
     res.json(openApiDocument);
   });
 
-  app.use("/api/companies", createCompanyRouter(companyController));
-  app.use("/api/risk-summary", createRiskRouter(riskController));
-  app.use("/api/risk-events", createRiskEventRouter(riskController));
+  app.use(
+    "/api/companies",
+    cachePublicData,
+    createCompanyRouter(companyController)
+  );
+  app.use(
+    "/api/risk-summary",
+    cachePublicData,
+    createRiskRouter(riskController)
+  );
+  app.use(
+    "/api/risk-events",
+    cachePublicData,
+    createRiskEventRouter(riskController)
+  );
 
   // Preserve the original frontend contract while clients migrate to /api/companies.
-  app.get("/company", companyController.listLegacy);
+  app.get("/company", cachePublicData, companyController.listLegacy);
 
   app.use(notFound);
   app.use(errorHandler);
