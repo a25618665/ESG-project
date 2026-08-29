@@ -41,6 +41,23 @@ describe("risk service", () => {
     assert.deepEqual(await service.getRiskSummary(), validSummary);
   });
 
+  it("reuses validated risk analytics within the cache TTL", async () => {
+    let repositoryCalls = 0;
+    const service = createRiskService(
+      buildRepository({
+        getSummary: async () => {
+          repositoryCalls += 1;
+          return validSummary;
+        },
+      })
+    );
+
+    await service.getRiskSummary();
+    await service.getRiskSummary();
+
+    assert.equal(repositoryCalls, 1);
+  });
+
   it("rejects an invalid database summary", async () => {
     const service = createRiskService(buildRepository({
       getSummary: async () => ({ eventCount: "188" }),

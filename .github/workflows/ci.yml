@@ -114,6 +114,7 @@ jobs:
             --output /tmp/companies.json
 
           curl --fail --silent --show-error \
+            --dump-header /tmp/risk-summary-headers.txt \
             http://localhost:3000/api/risk-summary \
             --output /tmp/risk-summary.json
 
@@ -158,6 +159,9 @@ jobs:
           if "x-powered-by" in health_headers:
               raise SystemExit("The API exposed its Express implementation")
 
+          if health_headers.get("cache-control") != "no-store":
+              raise SystemExit("Health responses must not be cached")
+
           records = payload.get("data")
           reported_count = payload.get("meta", {}).get("count")
 
@@ -171,6 +175,21 @@ jobs:
 
           with open("/tmp/risk-summary.json", encoding="utf-8") as response:
               risk_payload = json.load(response)
+
+          with open(
+              "/tmp/risk-summary-headers.txt", encoding="utf-8"
+          ) as response:
+              risk_summary_headers = {
+                  name.strip().lower(): value.strip()
+                  for line in response
+                  if ":" in line
+                  for name, value in [line.split(":", 1)]
+              }
+
+          if risk_summary_headers.get("cache-control") != (
+              "public, max-age=30, stale-while-revalidate=60"
+          ):
+              raise SystemExit("Risk-summary cache policy is not deployment-safe")
 
           summary = risk_payload.get("data", {})
           expected_metrics = {
