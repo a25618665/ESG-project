@@ -45,10 +45,14 @@
       </div>
     </form>
 
-    <p v-if="loading" class="status">Loading risk events…</p>
-    <p v-else-if="errorMessage" class="status error" role="alert">
-      {{ errorMessage }}
-    </p>
+    <p v-if="loading" class="status" role="status">Loading risk events…</p>
+    <div v-else-if="errorMessage" class="status error" role="alert">
+      <p>{{ errorMessage }}</p>
+      <p v-if="errorReference" class="error-reference">
+        Reference: <code>{{ errorReference }}</code>
+      </p>
+      <button type="button" @click="loadEvents">Retry</button>
+    </div>
     <p v-else-if="events.length === 0" class="status">
       No risk events match these filters.
     </p>
@@ -95,11 +99,11 @@
 </template>
 
 <script>
-import axios from "axios";
-
-const apiBaseUrl = (
-  import.meta.env.VITE_API_URL || "http://localhost:3000/"
-).replace(/\/+$/, "");
+import {
+  extractRequestId,
+  getApi,
+  isCanceledRequest,
+} from "../api/client";
 
 const eventFields = [
   "companyCode",
@@ -140,7 +144,9 @@ export default {
   data() {
     return {
       events: [],
+      activeRequestController: null,
       errorMessage: "",
+      errorReference: "",
       filters: { grade: "", majorClass: "", companyCode: "" },
       appliedFilters: { grade: "", majorClass: "", companyCode: "" },
       grades: ["3", "4", "5", "6", "7", "8", "9", "D"],
@@ -155,16 +161,21 @@ export default {
     },
   },
   created() {
-    this.loadEvents().catch(() => {
-      this.events = [];
-      this.errorMessage = "Risk events are temporarily unavailable.";
-      this.loading = false;
-    });
+    this.loadEvents();
+  },
+  beforeUnmount() {
+    const controller = this.activeRequestController;
+    this.activeRequestController = null;
+    controller?.abort();
   },
   methods: {
     async loadEvents() {
+      this.activeRequestController?.abort();
+      const controller = new AbortController();
+      this.activeRequestController = controller;
       this.loading = true;
       this.errorMessage = "";
+      this.errorReference = "";
       const params = {
         limit: this.meta.limit,
         offset: this.meta.offset,
@@ -174,17 +185,29 @@ export default {
       };
 
       try {
-        const response = await axios.get(`${apiBaseUrl}/api/risk-events`, {
+        const response = await getApi("/api/risk-events", {
           params,
+          signal: controller.signal,
         });
+        if (this.activeRequestController !== controller) return;
         if (!isEventResponse(response.data)) throw new Error("Invalid API response");
         this.events = response.data.data;
         this.meta = response.data.meta;
       } catch (error) {
+        if (
+          this.activeRequestController !== controller ||
+          isCanceledRequest(error)
+        ) {
+          return;
+        }
         this.events = [];
         this.errorMessage = "Risk events are temporarily unavailable.";
+        this.errorReference = extractRequestId(error);
       } finally {
-        this.loading = false;
+        if (this.activeRequestController === controller) {
+          this.activeRequestController = null;
+          this.loading = false;
+        }
       }
     },
     applyFilters() {
@@ -323,6 +346,19 @@ button:disabled {
 
 .error {
   color: #a33a3a;
+}
+
+.error p {
+  margin: 0 0 10px;
+}
+
+.error-reference {
+  font-size: 0.78rem;
+}
+
+.error button {
+  border-color: #c98787;
+  color: #8c2f2f;
 }
 
 .table-wrapper {

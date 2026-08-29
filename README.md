@@ -16,12 +16,13 @@ _Company-record interface using the two illustrative records from `database/init
 - **Machine-readable API contract:** publishes an OpenAPI 3.1 specification for all 8 public and compatibility routes, including bounded filters, response schemas, structured errors, and explicit deprecation metadata.
 - **Dependency-aware reliability:** separates process liveness from PostgreSQL readiness, converts dependency failures into safe `503 SERVICE_NOT_READY` responses, and prevents downstream containers from starting before the API can query its database.
 - **Versioned database changes:** applies 5 ordered SQL migrations under an advisory lock, records SHA-256 checksums in a migration ledger, rejects historical drift, and verifies idempotent startup against an existing PostgreSQL volume.
-- **Traceable operations:** validates and propagates `X-Request-Id` across all 8 routes, emits structured completion logs without query parameters, and returns the same identifier in error responses for client-to-server diagnosis.
+- **End-to-end request tracing:** generates correlation IDs in the browser, validates and propagates `X-Request-Id` across all 8 routes, emits structured completion logs without query parameters, and displays returned references on client errors for browser-to-server diagnosis.
+- **Resilient data interface:** centralizes API configuration with an 8-second timeout, exposes accessible retry actions for all 3 data views, and cancels or ignores stale explorer requests so older responses cannot overwrite newer filters.
 - **Deploy-safe lifecycle:** handles `SIGTERM` and `SIGINT` idempotently, stops accepting new traffic, drains active HTTP requests, closes idle connections, and enforces a 10-second forced-shutdown limit with structured lifecycle events.
 - **Hardened dependency boundaries:** runs Express 5 and pg-promise 12 with test tools isolated in `devDependencies`, unused middleware removed, and zero backend npm audit findings.
 - **Source-backed data pipeline:** transforms 188 populated workbook events into normalized PostgreSQL records for 33 companies and 11 risk categories while retaining source-row provenance and excluding republished news text.
 - **Indexed exploration API:** provides server-side filtering by CCRI grade, major risk class, and six-digit company code with parameterized SQL, deterministic ordering, bounded pagination, and structured validation errors.
-- **Automated verification:** runs two dependency audits, 64 backend tests, 16 Vue component tests, 8 data-pipeline tests, deterministic seed-drift detection, a production frontend build, Docker image builds, persistent-volume migration verification, a full-stack data-integrity smoke test, and a real container-shutdown check on every pull request and push to `main` through GitHub Actions.
+- **Automated verification:** runs two dependency audits, 64 backend tests, 25 frontend client/component tests, 8 data-pipeline tests, deterministic seed-drift detection, a production frontend build, Docker image builds, persistent-volume migration verification, a full-stack data-integrity smoke test, and a real container-shutdown check on every pull request and push to `main` through GitHub Actions.
 - **Structured research scale:** serves 188 CCRI risk events from 33 companies across 3 risk classes, 11 subcategories, and 7 numeric grades, explicitly accounting for 26 additional `D`-coded records, alongside the documented 311 company-report pairs.
 
 ## Architecture
@@ -58,7 +59,7 @@ The API uses dependency injection between its service and repository layers, whi
 | `GET` | `/api/risk-events` | Filters and paginates normalized risk-event records |
 | `GET` | `/company` | Preserves the original array response |
 
-Every route accepts an optional `X-Request-Id` correlation header and returns a validated identifier in the response. Structured completion logs record that identifier, method, path, status, duration, and error code without retaining query parameters. Unknown routes and database failures return the same identifier in consistent JSON errors without exposing internal implementation details. CORS is restricted to the configured frontend origin.
+Every route accepts an optional `X-Request-Id` correlation header and returns a validated identifier in the response. The shared frontend client generates this identifier for every API request and surfaces the returned reference when a request fails. Structured completion logs record that identifier, method, path, status, duration, and error code without retaining query parameters. Unknown routes and database failures return the same identifier in consistent JSON errors without exposing internal implementation details. CORS is restricted to the configured frontend origin.
 
 The complete request, response, validation, and error schemas are available in the [OpenAPI 3.1 contract](backend/openapi.json) and from the running service at <http://localhost:3000/openapi.json>.
 
@@ -108,7 +109,7 @@ npm test
 npm run build
 ```
 
-The CI workflow runs all 88 tests in clean Node.js 24 and Python 3.13 environments, verifies that the committed SQL can be reproduced from the workbook, builds the frontend and both application images, starts the complete Compose stack, validates liveness, database readiness, request-ID propagation, and four data/API contracts, reconciles the risk distributions to 188 events, verifies filtered pagination against 17 matching records, confirms the frontend is reachable, restarts the backend against the same PostgreSQL volume to prove all 5 migrations are skipped safely, and verifies a completed graceful shutdown after Docker sends `SIGTERM`.
+The CI workflow runs all 97 tests in clean Node.js 24 and Python 3.13 environments, verifies that the committed SQL can be reproduced from the workbook, builds the frontend and both application images, starts the complete Compose stack, validates liveness, database readiness, request-ID propagation, and four data/API contracts, reconciles the risk distributions to 188 events, verifies filtered pagination against 17 matching records, confirms the frontend is reachable, restarts the backend against the same PostgreSQL volume to prove all 5 migrations are skipped safely, and verifies a completed graceful shutdown after Docker sends `SIGTERM`.
 
 ## Data and research artifacts
 
