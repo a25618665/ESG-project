@@ -69,6 +69,23 @@ describe("ESG API", () => {
     assert.equal(response.headers["x-request-id"], "test-request-id");
   });
 
+  it("applies explicit API security headers without framework fingerprinting", async () => {
+    const response = await request(buildApp()).get("/health").expect(200);
+
+    assert.equal(
+      response.headers["content-security-policy"],
+      "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+    );
+    assert.equal(
+      response.headers["permissions-policy"],
+      "camera=(), geolocation=(), microphone=()"
+    );
+    assert.equal(response.headers["referrer-policy"], "no-referrer");
+    assert.equal(response.headers["x-content-type-options"], "nosniff");
+    assert.equal(response.headers["x-frame-options"], "DENY");
+    assert.equal(response.headers["x-powered-by"], undefined);
+  });
+
   it("preserves a valid caller-provided request ID", async () => {
     const response = await request(buildApp())
       .get("/health")
@@ -254,11 +271,11 @@ describe("ESG API", () => {
     assert.deepEqual(response.body, {
       error: {
         code: "ROUTE_NOT_FOUND",
-        message:
-          "Route not found: GET /missing?privateFilter=omitted-from-log",
+        message: "Route not found: GET /missing",
         requestId: "trace-404",
       },
     });
+    assert.doesNotMatch(JSON.stringify(response.body), /privateFilter/);
     assert.equal(response.headers["x-request-id"], "trace-404");
     assert.equal(entries.length, 1);
     assert.deepEqual(
@@ -283,6 +300,46 @@ describe("ESG API", () => {
     );
     assert.match(entries[0].timestamp, /^\d{4}-\d{2}-\d{2}T/);
     assert.ok(entries[0].durationMs >= 0);
+  });
+
+  it("returns a safe validation error for malformed JSON", async () => {
+    const response = await request(buildApp())
+      .post("/missing")
+      .set("Content-Type", "application/json")
+      .send('{"incomplete"')
+      .expect(400);
+
+    assert.deepEqual(response.body, {
+      error: {
+        code: "INVALID_REQUEST_BODY",
+        message: "The request body is not valid JSON",
+        requestId: "test-request-id",
+      },
+    });
+  });
+
+  it("rejects request bodies larger than 16 KB", async () => {
+    const response = await request(buildApp())
+      .post("/missing")
+      .send({ payload: "x".repeat(17 * 1024) })
+      .expect(413);
+
+    assert.equal(response.body.error.code, "REQUEST_BODY_TOO_LARGE");
+    assert.equal(response.body.error.requestId, "test-request-id");
+  });
+
+  it("rejects excessive form parameters", async () => {
+    const form = new URLSearchParams(
+      Array.from({ length: 51 }, (_, index) => [`field${index}`, "value"])
+    );
+    const response = await request(buildApp())
+      .post("/missing")
+      .set("Content-Type", "application/x-www-form-urlencoded")
+      .send(form.toString())
+      .expect(413);
+
+    assert.equal(response.body.error.code, "TOO_MANY_PARAMETERS");
+    assert.equal(response.body.error.requestId, "test-request-id");
   });
 
   it("preserves operational errors from the service layer", async () => {
