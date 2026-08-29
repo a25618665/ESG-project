@@ -99,7 +99,9 @@ jobs:
         run: |
           curl --fail --silent --show-error \
             --retry 5 --retry-connrefused --retry-delay 2 \
-            http://localhost:3000/health
+            --dump-header /tmp/health-headers.txt \
+            http://localhost:3000/health \
+            --output /tmp/health.json
 
           curl --fail --silent --show-error \
             --header 'X-Request-Id: ci-readiness-check' \
@@ -128,6 +130,33 @@ jobs:
 
           with open("/tmp/companies.json", encoding="utf-8") as response:
               payload = json.load(response)
+
+          with open("/tmp/health-headers.txt", encoding="utf-8") as response:
+              health_headers = {
+                  name.strip().lower(): value.strip()
+                  for line in response
+                  if ":" in line
+                  for name, value in [line.split(":", 1)]
+              }
+
+          expected_security_headers = {
+              "content-security-policy": (
+                  "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+              ),
+              "permissions-policy": "camera=(), geolocation=(), microphone=()",
+              "referrer-policy": "no-referrer",
+              "x-content-type-options": "nosniff",
+              "x-frame-options": "DENY",
+          }
+
+          for name, expected in expected_security_headers.items():
+              if health_headers.get(name) != expected:
+                  raise SystemExit(
+                      f"Expected {name}={expected!r}, received {health_headers.get(name)!r}"
+                  )
+
+          if "x-powered-by" in health_headers:
+              raise SystemExit("The API exposed its Express implementation")
 
           records = payload.get("data")
           reported_count = payload.get("meta", {}).get("count")

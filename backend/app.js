@@ -25,6 +25,10 @@ const {
   createRequestContext,
   defaultRequestLogger,
 } = require("./src/middleware/requestContext");
+const { securityHeaders } = require("./src/middleware/securityHeaders");
+
+const REQUEST_BODY_LIMIT = "16kb";
+const URL_ENCODED_PARAMETER_LIMIT = 50;
 
 function createDefaultServices(database = createDatabase()) {
   return {
@@ -56,15 +60,23 @@ function createApp(options = {}) {
   }
 
   app.set("env", environment);
+  app.disable("x-powered-by");
   app.use(
     createRequestContext({
       generateRequestId: options.requestIdFactory,
       logRequest: requestLogger,
     })
   );
+  app.use(securityHeaders);
 
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: false }));
+  app.use(express.json({ limit: REQUEST_BODY_LIMIT }));
+  app.use(
+    express.urlencoded({
+      extended: false,
+      limit: REQUEST_BODY_LIMIT,
+      parameterLimit: URL_ENCODED_PARAMETER_LIMIT,
+    })
+  );
   app.use((req, res, next) => {
     const requestOrigin = req.get("Origin");
 
