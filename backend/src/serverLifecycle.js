@@ -42,6 +42,7 @@ function startServer({
   createHttpServer = http.createServer,
   processRef = process,
   logEvent = defaultLifecycleLogger,
+  closeResources = () => undefined,
   shutdownTimeoutMs = DEFAULT_SHUTDOWN_TIMEOUT_MS,
   setTimer = setTimeout,
   clearTimer = clearTimeout,
@@ -53,6 +54,9 @@ function startServer({
 
   if (port === false || port === undefined || port === null) {
     throw new TypeError("A valid port or named pipe is required");
+  }
+  if (typeof closeResources !== "function") {
+    throw new TypeError("closeResources must be a function");
   }
 
   const server = createHttpServer(app);
@@ -86,6 +90,36 @@ function startServer({
     exit(code);
   }
 
+  async function completeShutdown({ signal, error }) {
+    if (shutdownFinished) {
+      return;
+    }
+
+    let shutdownError = error;
+    try {
+      await closeResources();
+    } catch (cleanupError) {
+      shutdownError ||= cleanupError;
+    }
+
+    if (shutdownError) {
+      finishShutdown({
+        code: 1,
+        event: "server_shutdown_failed",
+        level: "error",
+        signal,
+        error: shutdownError,
+      });
+      return;
+    }
+
+    finishShutdown({
+      code: 0,
+      event: "server_shutdown_completed",
+      signal,
+    });
+  }
+
   function shutdown(signal) {
     if (shuttingDown) {
       return;
@@ -113,32 +147,11 @@ function startServer({
 
     try {
       server.close((error) => {
-        if (error) {
-          finishShutdown({
-            code: 1,
-            event: "server_shutdown_failed",
-            level: "error",
-            signal,
-            error,
-          });
-          return;
-        }
-
-        finishShutdown({
-          code: 0,
-          event: "server_shutdown_completed",
-          signal,
-        });
+        void completeShutdown({ signal, error });
       });
       server.closeIdleConnections?.();
     } catch (error) {
-      finishShutdown({
-        code: 1,
-        event: "server_shutdown_failed",
-        level: "error",
-        signal,
-        error,
-      });
+      void completeShutdown({ signal, error });
     }
   }
 

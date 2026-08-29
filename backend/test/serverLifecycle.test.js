@@ -82,11 +82,12 @@ describe("server lifecycle", () => {
     ]);
   });
 
-  it("drains connections and exits successfully on SIGTERM", () => {
+  it("drains connections and exits successfully on SIGTERM", async () => {
     const { exitCodes, logs, processRef, server, timers } = createHarness();
 
     processRef.emit("SIGTERM");
     server.closeCallback();
+    await new Promise(setImmediate);
 
     assert.equal(server.closeCalls, 1);
     assert.equal(server.closeIdleCalls, 1);
@@ -97,6 +98,61 @@ describe("server lifecycle", () => {
     assert.deepEqual(
       logs.map(({ event }) => event),
       ["server_shutdown_started", "server_shutdown_completed"],
+    );
+  });
+
+  it("waits for asynchronous resource cleanup before exiting", async () => {
+    let resolveCleanup;
+    let cleanupCalls = 0;
+    const cleanup = new Promise((resolve) => {
+      resolveCleanup = resolve;
+    });
+    const { exitCodes, logs, processRef, server } = createHarness({
+      closeResources: () => {
+        cleanupCalls += 1;
+        return cleanup;
+      },
+    });
+
+    processRef.emit("SIGTERM");
+    server.closeCallback();
+    await new Promise(setImmediate);
+
+    assert.equal(cleanupCalls, 1);
+    assert.deepEqual(exitCodes, []);
+
+    resolveCleanup();
+    await cleanup;
+    await new Promise(setImmediate);
+
+    assert.deepEqual(exitCodes, [0]);
+    assert.equal(logs.at(-1).event, "server_shutdown_completed");
+  });
+
+  it("reports resource cleanup failures", async () => {
+    const { exitCodes, logs, processRef, server } = createHarness({
+      closeResources: async () => {
+        throw new Error("database pool did not close");
+      },
+    });
+
+    processRef.emit("SIGTERM");
+    server.closeCallback();
+    await new Promise(setImmediate);
+
+    assert.deepEqual(exitCodes, [1]);
+    assert.deepEqual(logs.at(-1), {
+      event: "server_shutdown_failed",
+      level: "error",
+      signal: "SIGTERM",
+      message: "database pool did not close",
+    });
+  });
+
+  it("requires a resource cleanup function", () => {
+    assert.throws(
+      () => createHarness({ closeResources: "invalid" }),
+      /closeResources must be a function/,
     );
   });
 
