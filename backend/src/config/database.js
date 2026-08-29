@@ -42,4 +42,14 @@ function createDatabase(environment = process.env) {
   return pgp(readDatabaseConfig(environment));
 }
 
-module.exports = { createDatabase, readDatabaseConfig };
+async function closeDatabase(database) {
+  if (!database?.$pool || typeof database.$pool.end !== "function") {
+    throw new TypeError(
+      "A database client with a closable connection pool is required"
+    );
+  }
+
+  await database.$pool.end();
+}
+
+module.exports = { closeDatabase, createDatabase, readDatabaseConfig };

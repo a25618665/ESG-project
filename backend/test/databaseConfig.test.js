@@ -1,6 +1,9 @@
 const assert = require("assert").strict;
 
-const { readDatabaseConfig } = require("../src/config/database");
+const {
+  closeDatabase,
+  readDatabaseConfig,
+} = require("../src/config/database");
 
 describe("database configuration", () => {
   const validEnvironment = {
@@ -45,5 +48,21 @@ describe("database configuration", () => {
       readDatabaseConfig({ ...validEnvironment, DB_SSL: "true" }).ssl,
       { rejectUnauthorized: false }
     );
+  });
+
+  it("closes the PostgreSQL connection pool", async () => {
+    let closeCalls = 0;
+    const database = {
+      $pool: {
+        async end() {
+          closeCalls += 1;
+        },
+      },
+    };
+
+    await closeDatabase(database);
+
+    assert.equal(closeCalls, 1);
+    await assert.rejects(closeDatabase({}), /closable connection pool/);
   });
 });
